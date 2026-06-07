@@ -1,0 +1,15 @@
+{
+  "name": "platformlog-plugins-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Workspace root for @theplatformlog/* publishable packages. Not itself published.",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "yarn workspaces foreach -A --include '@theplatformlog/*' run build",
+    "test": "yarn workspaces foreach -A --include '@theplatformlog/*' run test",
+    "lint": "yarn workspaces foreach -A --include '@theplatformlog/*' run lint"
+  },
+  "packageManager": "yarn@4.8.1"
+}

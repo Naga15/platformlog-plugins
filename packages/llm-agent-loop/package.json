@@ -1,0 +1,56 @@
+{
+  "name": "@theplatformlog/llm-agent-loop",
+  "version": "0.1.0",
+  "description": "A small, framework-agnostic LLM-in-a-loop primitive: zod-validated tool registry, 5 independent stop conditions (steps / tool-calls / wallclock / tokens / cost), and trace/budget output. SDK-agnostic via a single AgentStepFn seam.",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "Apache-2.0",
+  "author": "Naga15 <naga0448@gmail.com>",
+  "homepage": "https://theplatformlog.dev/agent-loop",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Naga15/platformlog-plugins.git",
+    "directory": "packages/llm-agent-loop"
+  },
+  "bugs": "https://github.com/Naga15/platformlog-plugins/issues",
+  "keywords": [
+    "llm",
+    "agent",
+    "agents",
+    "tool-use",
+    "ai",
+    "claude",
+    "anthropic",
+    "openai",
+    "vercel-ai-sdk"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "lint": "echo lint placeholder",
+    "test": "jest --no-coverage",
+    "prepublishOnly": "yarn build"
+  },
+  "peerDependencies": {
+    "zod": "^3.25.0 || ^4.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.3.0",
+    "zod": "^3.25.76"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node"
+  }
+}

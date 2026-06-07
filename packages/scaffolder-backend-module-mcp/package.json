@@ -1,0 +1,66 @@
+{
+  "name": "@theplatformlog/scaffolder-backend-module-mcp",
+  "version": "0.1.0",
+  "description": "Backstage scaffolder backend module that lets templates invoke any Model Context Protocol (MCP) server tool. Inverse of plugin-mcp-actions-backend.",
+  "backstage": {
+    "role": "backend-plugin-module",
+    "pluginId": "scaffolder",
+    "pluginPackage": "@backstage/plugin-scaffolder-backend"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "config.d.ts",
+    "README.md"
+  ],
+  "configSchema": "config.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "Apache-2.0",
+  "author": "Naga15 <naga0448@gmail.com>",
+  "homepage": "https://theplatformlog.dev/mcp-scaffolder-client",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Naga15/platformlog-plugins.git",
+    "directory": "packages/scaffolder-backend-module-mcp"
+  },
+  "bugs": "https://github.com/Naga15/platformlog-plugins/issues",
+  "keywords": [
+    "backstage",
+    "scaffolder",
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "agent"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "lint": "echo lint placeholder",
+    "test": "jest --no-coverage",
+    "prepublishOnly": "yarn build"
+  },
+  "dependencies": {
+    "@backstage/backend-plugin-api": "^1.0.0",
+    "@backstage/config": "^1.2.0",
+    "@backstage/errors": "^1.2.0",
+    "@backstage/plugin-scaffolder-node": "^0.9.0",
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "zod": "^3.25.76 || ^4.0.0"
+  },
+  "devDependencies": {
+    "@backstage/backend-test-utils": "^1.0.0",
+    "@backstage/plugin-scaffolder-node-test-utils": "^0.1.0",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.3.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node"
+  }
+}

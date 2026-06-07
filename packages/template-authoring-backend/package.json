@@ -1,0 +1,76 @@
+{
+  "name": "@theplatformlog/template-authoring-backend",
+  "version": "0.1.0",
+  "description": "Backstage backend plugin that generates scaffolder Template entities from natural-language descriptions, constrained by a zod schema so the LLM cannot emit an invalid Template.",
+  "backstage": {
+    "role": "backend-plugin",
+    "pluginId": "template-authoring",
+    "pluginPackages": [
+      "@theplatformlog/template-authoring-backend"
+    ]
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "config.d.ts",
+    "README.md"
+  ],
+  "configSchema": "config.d.ts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "Apache-2.0",
+  "author": "Naga15 <naga0448@gmail.com>",
+  "homepage": "https://theplatformlog.dev/template-authoring",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Naga15/platformlog-plugins.git",
+    "directory": "packages/template-authoring-backend"
+  },
+  "bugs": "https://github.com/Naga15/platformlog-plugins/issues",
+  "keywords": [
+    "backstage",
+    "scaffolder",
+    "ai",
+    "llm",
+    "template",
+    "authoring",
+    "structured-output"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist",
+    "lint": "echo lint placeholder",
+    "test": "jest --no-coverage",
+    "prepublishOnly": "yarn build"
+  },
+  "dependencies": {
+    "@ai-sdk/anthropic": "^2.0.0",
+    "@backstage/backend-plugin-api": "^1.0.0",
+    "@backstage/catalog-client": "^1.7.0",
+    "@backstage/catalog-model": "^1.5.0",
+    "@backstage/config": "^1.2.0",
+    "@backstage/errors": "^1.2.0",
+    "@backstage/plugin-scaffolder-common": "^1.5.0",
+    "ai": "^5.0.0",
+    "express": "^4.17.1",
+    "yaml": "^2.0.0",
+    "zod": "^3.25.76 || ^4.0.0"
+  },
+  "devDependencies": {
+    "@backstage/backend-test-utils": "^1.0.0",
+    "@types/express": "^4.17.21",
+    "@types/jest": "^29.5.0",
+    "@types/node": "^20.0.0",
+    "@types/supertest": "^6.0.0",
+    "jest": "^29.7.0",
+    "supertest": "^7.0.0",
+    "ts-jest": "^29.1.0",
+    "typescript": "^5.3.0"
+  },
+  "jest": {
+    "preset": "ts-jest",
+    "testEnvironment": "node"
+  }
+}
