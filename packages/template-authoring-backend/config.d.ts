@@ -17,12 +17,26 @@
 export interface Config {
   templateAuthoring?: {
     /**
-     * Anthropic model id to use for template generation.
-     * Defaults to "claude-sonnet-4-6".
+     * LLM provider to use. One of: "anthropic" (default), "openai",
+     * "google", "mistral". Non-default providers require the matching
+     * `@ai-sdk/<provider>` package to be installed in the backend.
+     */
+    provider?: string;
+    /**
+     * Model id to use for template generation, passed through to the
+     * selected provider (e.g. "claude-opus-4-8", "gpt-5"). Defaults to
+     * "claude-opus-4-8" for the anthropic provider; required otherwise.
      */
     model?: string;
     /**
-     * Anthropic API key.
+     * API key for the selected provider. If omitted, the provider SDK reads
+     * its conventional env var (ANTHROPIC_API_KEY, OPENAI_API_KEY,
+     * GOOGLE_GENERATIVE_AI_API_KEY, MISTRAL_API_KEY).
+     * @visibility secret
+     */
+    apiKey?: string;
+    /**
+     * Deprecated alias for `apiKey`, kept for backwards compatibility.
      * @visibility secret
      */
     anthropicApiKey?: string;

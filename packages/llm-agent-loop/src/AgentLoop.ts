@@ -52,8 +52,10 @@ export const DEFAULT_STOP_CONDITIONS: StopConditions = {
 };
 
 /**
- * USD per 1M tokens. Default matches Claude Sonnet 4.6 published
- * pricing as of mid-2026. Override per model.
+ * USD per 1M tokens. Default matches Claude Opus 4.8 published pricing
+ * as of mid-2026 ($5 in / $25 out). Override per model — e.g. Sonnet 4.6
+ * is `{ inputPerMillion: 3, outputPerMillion: 15 }`, Haiku 4.5 is
+ * `{ inputPerMillion: 1, outputPerMillion: 5 }`.
  *
  * @public
  */
@@ -66,8 +68,8 @@ export interface ModelPricing {
  * @public
  */
 export const DEFAULT_PRICING: ModelPricing = {
-  inputPerMillion: 3.0,
-  outputPerMillion: 15.0,
+  inputPerMillion: 5.0,
+  outputPerMillion: 25.0,
 };
 
 /**

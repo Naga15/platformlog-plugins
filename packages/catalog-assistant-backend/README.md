@@ -32,25 +32,50 @@ Register the plugin:
 
 ```ts
 // packages/backend/src/index.ts
-backend.add(import('@backstage/plugin-catalog-assistant-backend'));
+backend.add(import('@theplatformlog/catalog-assistant-backend'));
 ```
 
 ## Configuration
 
 ```yaml
 catalogAssistant:
-  # Defaults to 'claude-sonnet-4-6'
-  model: claude-sonnet-4-6
-  # Or pass via ANTHROPIC_API_KEY env var
-  anthropicApiKey: ${ANTHROPIC_API_KEY}
+  # LLM provider: anthropic (default) | openai | google | mistral
+  provider: anthropic
+  # Model id for the chosen provider. Defaults to 'claude-opus-4-8'
+  # for anthropic; required for any other provider.
+  model: claude-opus-4-8
+  # API key for the provider. If omitted, the provider SDK reads its
+  # conventional env var (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.).
+  apiKey: ${ANTHROPIC_API_KEY}
   # Defaults to 20
   maxContextEntities: 20
   # Defaults to 1024
   maxOutputTokens: 1024
 ```
 
-`anthropicApiKey` is marked `secret` in the config schema; provide it via env
-var in production.
+`apiKey` is marked `secret` in the config schema; provide it via env var in
+production. (`anthropicApiKey` is still accepted as a deprecated alias.)
+
+### Using a non-Anthropic provider
+
+`@ai-sdk/anthropic` ships with this plugin. To use another provider, install
+its Vercel AI SDK package in your backend and set `provider` + `model`:
+
+```bash
+# OpenAI
+yarn --cwd packages/backend add @ai-sdk/openai
+```
+
+```yaml
+catalogAssistant:
+  provider: openai
+  model: gpt-5
+  apiKey: ${OPENAI_API_KEY}
+```
+
+Supported providers: `anthropic`, `openai`, `google`, `mistral`. Any model id
+the chosen provider's SDK accepts works — Claude (`claude-opus-4-8`,
+`claude-sonnet-4-6`, `claude-haiku-4-5`, …), GPT, Gemini, Mistral, etc.
 
 ## API
 

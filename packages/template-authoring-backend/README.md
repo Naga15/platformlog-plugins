@@ -30,22 +30,46 @@ Register the plugin:
 
 ```ts
 // packages/backend/src/index.ts
-backend.add(import('@backstage/plugin-template-authoring-backend'));
+backend.add(import('@theplatformlog/template-authoring-backend'));
 ```
 
 ## Configuration
 
 ```yaml
 templateAuthoring:
-  # Defaults to 'claude-sonnet-4-6'
-  model: claude-sonnet-4-6
-  # Or pass via ANTHROPIC_API_KEY env var
-  anthropicApiKey: ${ANTHROPIC_API_KEY}
+  # LLM provider: anthropic (default) | openai | google | mistral
+  provider: anthropic
+  # Model id for the chosen provider. Defaults to 'claude-opus-4-8'
+  # for anthropic; required for any other provider.
+  model: claude-opus-4-8
+  # API key for the provider. If omitted, the provider SDK reads its
+  # conventional env var (ANTHROPIC_API_KEY, OPENAI_API_KEY, etc.).
+  apiKey: ${ANTHROPIC_API_KEY}
   # Defaults to 3
   maxReferenceTemplates: 3
   # Used when the LLM omits spec.owner. Defaults to 'group:default/unowned'.
   defaultOwner: group:default/platform
 ```
+
+### Using a non-Anthropic provider
+
+`@ai-sdk/anthropic` ships with this plugin. To use another provider, install
+its Vercel AI SDK package in your backend and set `provider` + `model`:
+
+```bash
+yarn --cwd packages/backend add @ai-sdk/openai
+```
+
+```yaml
+templateAuthoring:
+  provider: openai
+  model: gpt-5
+  apiKey: ${OPENAI_API_KEY}
+```
+
+Supported providers: `anthropic`, `openai`, `google`, `mistral`. Note that
+template generation relies on structured output (`generateObject`); pick a
+model on your provider that supports it.
 
 ## API
 

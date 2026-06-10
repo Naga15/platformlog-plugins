@@ -1,6 +1,6 @@
 {
   "name": "@theplatformlog/llm-agent-loop",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A small, framework-agnostic LLM-in-a-loop primitive: zod-validated tool registry, 5 independent stop conditions (steps / tool-calls / wallclock / tokens / cost), and trace/budget output. SDK-agnostic via a single AgentStepFn seam.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

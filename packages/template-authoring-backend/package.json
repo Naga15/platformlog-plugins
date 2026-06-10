@@ -1,6 +1,6 @@
 {
   "name": "@theplatformlog/template-authoring-backend",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Backstage backend plugin that generates scaffolder Template entities from natural-language descriptions, constrained by a zod schema so the LLM cannot emit an invalid Template.",
   "backstage": {
     "role": "backend-plugin",
@@ -57,6 +57,22 @@
     "express": "^4.17.1",
     "yaml": "^2.0.0",
     "zod": "^3.25.76 || ^4.0.0"
+  },
+  "peerDependencies": {
+    "@ai-sdk/google": "^2.0.0",
+    "@ai-sdk/mistral": "^2.0.0",
+    "@ai-sdk/openai": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@ai-sdk/google": {
+      "optional": true
+    },
+    "@ai-sdk/mistral": {
+      "optional": true
+    },
+    "@ai-sdk/openai": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@backstage/backend-test-utils": "^1.0.0",

@@ -14,18 +14,19 @@
  * limitations under the License.
  */
 
-import { createAnthropic } from '@ai-sdk/anthropic';
 import {
   coreServices,
   createBackendPlugin,
 } from '@backstage/backend-plugin-api';
 import { CatalogClient } from '@backstage/catalog-client';
 import { generateText } from 'ai';
+import { resolveModel } from './createModel';
 import { CatalogContextRetriever } from './services/CatalogContextRetriever';
 import { GenerateTextFn, QueryService } from './services/QueryService';
 import { createRouter } from './router/createRouter';
 
-const DEFAULT_MODEL = 'claude-sonnet-4-6';
+const DEFAULT_PROVIDER = 'anthropic';
+const DEFAULT_ANTHROPIC_MODEL = 'claude-opus-4-8';
 const DEFAULT_MAX_CONTEXT_ENTITIES = 20;
 const DEFAULT_MAX_OUTPUT_TOKENS = 1024;
 
@@ -48,17 +49,33 @@ export const catalogAssistantPlugin = createBackendPlugin({
       },
       async init({ config, logger, httpRouter, httpAuth, discovery }) {
         const sub = config.getOptionalConfig('catalogAssistant');
+        const provider =
+          sub?.getOptionalString('provider') ?? DEFAULT_PROVIDER;
+        // Generic apiKey; falls back to the legacy anthropic-only field, then
+        // to the provider SDK's own env var (e.g. ANTHROPIC_API_KEY).
         const apiKey =
+          sub?.getOptionalString('apiKey') ??
           sub?.getOptionalString('anthropicApiKey') ??
-          process.env.ANTHROPIC_API_KEY;
-        if (!apiKey) {
+          undefined;
+        const modelId =
+          sub?.getOptionalString('model') ??
+          (provider === DEFAULT_PROVIDER ? DEFAULT_ANTHROPIC_MODEL : undefined);
+        if (!modelId) {
+          throw new Error(
+            `catalog-assistant: a 'model' is required when provider is '${provider}'`,
+          );
+        }
+        if (
+          provider === 'anthropic' &&
+          !apiKey &&
+          !process.env.ANTHROPIC_API_KEY
+        ) {
           throw new Error(
             'catalog-assistant: ANTHROPIC_API_KEY env var or ' +
-              'catalogAssistant.anthropicApiKey config is required',
+              'catalogAssistant.apiKey config is required for the anthropic provider',
           );
         }
 
-        const modelId = sub?.getOptionalString('model') ?? DEFAULT_MODEL;
         const maxContextEntities =
           sub?.getOptionalNumber('maxContextEntities') ??
           DEFAULT_MAX_CONTEXT_ENTITIES;
@@ -66,8 +83,10 @@ export const catalogAssistantPlugin = createBackendPlugin({
           sub?.getOptionalNumber('maxOutputTokens') ??
           DEFAULT_MAX_OUTPUT_TOKENS;
 
-        const anthropic = createAnthropic({ apiKey });
-        const model = anthropic(modelId);
+        const model = await resolveModel({ provider, modelId, apiKey });
+        logger.info(
+          `catalog-assistant: using provider '${provider}' model '${modelId}'`,
+        );
 
         const catalog = new CatalogClient({ discoveryApi: discovery });
         const retriever = new CatalogContextRetriever(

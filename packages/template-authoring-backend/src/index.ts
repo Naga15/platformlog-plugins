@@ -23,6 +23,11 @@
  */
 
 export { templateAuthoringPlugin as default } from './plugin';
+export {
+  resolveModel,
+  SUPPORTED_PROVIDERS,
+  type ResolveModelOptions,
+} from './createModel';
 export type { ReferenceTemplateLoader } from './services/ReferenceTemplateLoader';
 export type {
   GeneratedTemplate,

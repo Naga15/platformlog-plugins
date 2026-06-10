@@ -1,0 +1,98 @@
+/*
+ * Copyright 2026 The Backstage Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * Maps a provider key to the Vercel AI SDK package that supplies it and the
+ * factory function that package exports. Any provider whose package exposes a
+ * `create<Name>(opts)(modelId)` factory works with this resolver.
+ *
+ * `@ai-sdk/anthropic` is a hard dependency (the default). The others are
+ * declared as optional peer dependencies — install the one you need.
+ *
+ * @public
+ */
+export const SUPPORTED_PROVIDERS: Record<
+  string,
+  { pkg: string; factory: string }
+> = {
+  anthropic: { pkg: '@ai-sdk/anthropic', factory: 'createAnthropic' },
+  openai: { pkg: '@ai-sdk/openai', factory: 'createOpenAI' },
+  google: { pkg: '@ai-sdk/google', factory: 'createGoogleGenerativeAI' },
+  mistral: { pkg: '@ai-sdk/mistral', factory: 'createMistral' },
+};
+
+/**
+ * @public
+ */
+export interface ResolveModelOptions {
+  /** Provider key, e.g. `anthropic` (default), `openai`, `google`, `mistral`. */
+  provider: string;
+  /** Provider-specific model id, e.g. `claude-opus-4-8`, `gpt-5`. */
+  modelId: string;
+  /**
+   * API key. If omitted, the provider's own SDK reads its conventional env var
+   * (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`,
+   * `MISTRAL_API_KEY`).
+   */
+  apiKey?: string;
+}
+
+/**
+ * Resolves a provider + model id into a Vercel AI SDK `LanguageModel`,
+ * dynamically importing only the provider package that's actually selected.
+ *
+ * Returns `unknown` deliberately — the services that consume the model treat
+ * it opaquely, which keeps this package decoupled from any single AI SDK
+ * version's `LanguageModel` type.
+ *
+ * @public
+ */
+export async function resolveModel(
+  opts: ResolveModelOptions,
+): Promise<unknown> {
+  const { provider, modelId, apiKey } = opts;
+  const entry = SUPPORTED_PROVIDERS[provider];
+  if (!entry) {
+    throw new Error(
+      `unknown model provider '${provider}'. Supported: ${Object.keys(
+        SUPPORTED_PROVIDERS,
+      ).join(', ')}.`,
+    );
+  }
+
+  let mod: any;
+  try {
+    // Variable specifier keeps optional providers out of the compile-time
+    // module graph; a missing optional package surfaces as a friendly error.
+    mod = await import(entry.pkg);
+  } catch {
+    throw new Error(
+      `model provider '${provider}' requires the '${entry.pkg}' package. ` +
+        `Install it in your backend: yarn --cwd packages/backend add ${entry.pkg}`,
+    );
+  }
+
+  const factory = mod[entry.factory] ?? mod.default?.[entry.factory];
+  if (typeof factory !== 'function') {
+    throw new Error(
+      `'${entry.pkg}' does not export '${entry.factory}'; ` +
+        `the installed version may be incompatible.`,
+    );
+  }
+
+  const instance = factory(apiKey ? { apiKey } : {});
+  return instance(modelId);
+}

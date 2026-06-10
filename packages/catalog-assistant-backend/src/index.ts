@@ -23,6 +23,11 @@
  */
 
 export { catalogAssistantPlugin as default } from './plugin';
+export {
+  resolveModel,
+  SUPPORTED_PROVIDERS,
+  type ResolveModelOptions,
+} from './createModel';
 export type {
   CatalogContextRetriever,
   ScoredEntity,
