@@ -77,6 +77,43 @@ Supported providers: `anthropic`, `openai`, `google`, `mistral`. Any model id
 the chosen provider's SDK accepts works — Claude (`claude-opus-4-8`,
 `claude-sonnet-4-6`, `claude-haiku-4-5`, …), GPT, Gemini, Mistral, etc.
 
+### Free and local models (cost-sensitive)
+
+Two paths to $0 (or near-$0):
+
+**Local — Ollama (truly free, runs Gemma 3 / Llama on your hardware).** Set the
+`openai` provider's `baseURL` to Ollama's OpenAI-compatible endpoint:
+
+```bash
+ollama pull gemma3
+yarn --cwd packages/backend add @ai-sdk/openai
+```
+
+```yaml
+catalogAssistant:
+  provider: openai
+  model: gemma3            # or gemma3:27b, llama3.1, qwen2.5, …
+  baseURL: http://localhost:11434/v1
+  apiKey: ollama           # any non-empty value; Ollama ignores it
+```
+
+**Hosted free tiers.** Google AI Studio (`gemini-2.5-flash`) has a generous
+free tier; Groq and OpenRouter serve Gemma 3 free/cheap and are OpenAI-compatible:
+
+```yaml
+# Google free tier
+catalogAssistant: { provider: google, model: gemini-2.5-flash, apiKey: ${GOOGLE_GENERATIVE_AI_API_KEY} }
+
+# Groq (free, fast) — serves Gemma
+catalogAssistant: { provider: openai, model: gemma2-9b-it, baseURL: https://api.groq.com/openai/v1, apiKey: ${GROQ_API_KEY} }
+
+# OpenRouter — free Gemma 3 variant
+catalogAssistant: { provider: openai, model: "google/gemma-3-27b-it:free", baseURL: https://openrouter.ai/api/v1, apiKey: ${OPENROUTER_API_KEY} }
+```
+
+Because retrieval is deterministic and the prompt is grounded, a small free
+model handles most catalog Q&A well — reserve a frontier model for hard cases.
+
 ## API
 
 ### `POST /api/catalog-assistant/v1/query`

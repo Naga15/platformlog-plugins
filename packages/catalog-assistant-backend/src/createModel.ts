@@ -48,6 +48,15 @@ export interface ResolveModelOptions {
    * `MISTRAL_API_KEY`).
    */
   apiKey?: string;
+  /**
+   * Override the provider's base URL. The main use is pointing the `openai`
+   * provider at any OpenAI-API-compatible endpoint to run **free or local
+   * models** — e.g. Ollama (`http://localhost:11434/v1`, runs Gemma 3 / Llama
+   * locally at $0), Groq, OpenRouter, vLLM, LM Studio, Together. For Ollama,
+   * pass any non-empty `apiKey` (e.g. `"ollama"`) — it's ignored by the server
+   * but the SDK requires one.
+   */
+  baseURL?: string;
 }
 
 /**
@@ -63,7 +72,7 @@ export interface ResolveModelOptions {
 export async function resolveModel(
   opts: ResolveModelOptions,
 ): Promise<unknown> {
-  const { provider, modelId, apiKey } = opts;
+  const { provider, modelId, apiKey, baseURL } = opts;
   const entry = SUPPORTED_PROVIDERS[provider];
   if (!entry) {
     throw new Error(
@@ -93,6 +102,10 @@ export async function resolveModel(
     );
   }
 
-  const instance = factory(apiKey ? { apiKey } : {});
+  const factoryOpts: { apiKey?: string; baseURL?: string } = {};
+  if (apiKey) factoryOpts.apiKey = apiKey;
+  if (baseURL) factoryOpts.baseURL = baseURL;
+
+  const instance = factory(factoryOpts);
   return instance(modelId);
 }

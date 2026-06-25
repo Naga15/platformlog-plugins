@@ -83,7 +83,8 @@ export const catalogAssistantPlugin = createBackendPlugin({
           sub?.getOptionalNumber('maxOutputTokens') ??
           DEFAULT_MAX_OUTPUT_TOKENS;
 
-        const model = await resolveModel({ provider, modelId, apiKey });
+        const baseURL = sub?.getOptionalString('baseURL');
+        const model = await resolveModel({ provider, modelId, apiKey, baseURL });
         logger.info(
           `catalog-assistant: using provider '${provider}' model '${modelId}'`,
         );

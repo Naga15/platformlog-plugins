@@ -36,6 +36,14 @@ export interface Config {
      */
     apiKey?: string;
     /**
+     * Override the provider base URL. Use with provider "openai" to point at
+     * any OpenAI-API-compatible endpoint and run free or local models:
+     * Ollama ("http://localhost:11434/v1", runs Gemma 3 locally at no cost),
+     * Groq, OpenRouter, vLLM, LM Studio, Together. For Ollama, set apiKey to
+     * any non-empty value (e.g. "ollama").
+     */
+    baseURL?: string;
+    /**
      * Deprecated alias for `apiKey`, kept for backwards compatibility.
      * @visibility secret
      */

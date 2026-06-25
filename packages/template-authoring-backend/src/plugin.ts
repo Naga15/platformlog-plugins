@@ -85,7 +85,8 @@ export const templateAuthoringPlugin = createBackendPlugin({
         const defaultOwner =
           sub?.getOptionalString('defaultOwner') ?? DEFAULT_OWNER;
 
-        const model = await resolveModel({ provider, modelId, apiKey });
+        const baseURL = sub?.getOptionalString('baseURL');
+        const model = await resolveModel({ provider, modelId, apiKey, baseURL });
         logger.info(
           `template-authoring: using provider '${provider}' model '${modelId}'`,
         );

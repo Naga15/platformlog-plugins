@@ -1,6 +1,6 @@
 {
   "name": "@theplatformlog/catalog-assistant-backend",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Backstage backend plugin that answers natural-language questions about the Software Catalog with grounded LLM answers and entity-ref citations.",
   "backstage": {
     "role": "backend-plugin",

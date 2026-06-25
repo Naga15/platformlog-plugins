@@ -71,6 +71,33 @@ Supported providers: `anthropic`, `openai`, `google`, `mistral`. Note that
 template generation relies on structured output (`generateObject`); pick a
 model on your provider that supports it.
 
+### Free and local models (cost-sensitive)
+
+You can point the `openai` provider at any OpenAI-API-compatible endpoint via
+`baseURL` to run free or local models — Ollama (local, $0), Groq, OpenRouter,
+vLLM, LM Studio:
+
+```bash
+ollama pull gemma3
+yarn --cwd packages/backend add @ai-sdk/openai
+```
+
+```yaml
+templateAuthoring:
+  provider: openai
+  model: gemma3
+  baseURL: http://localhost:11434/v1
+  apiKey: ollama           # any non-empty value; Ollama ignores it
+```
+
+Google's free tier (`provider: google, model: gemini-2.5-flash`) also works.
+
+⚠️ **Caveat for this plugin:** template generation needs reliable
+**structured/JSON output**. Frontier models (Claude, GPT, Gemini) and the
+larger open models (Gemma 3 27B, Llama 3.1 70B) handle the zod-constrained
+schema well; very small local models may produce invalid Templates. If you see
+schema-validation warnings, move up a size or use a hosted free tier.
+
 ## API
 
 ### `POST /api/template-authoring/v1/generate`
