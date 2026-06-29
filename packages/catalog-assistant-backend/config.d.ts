@@ -18,15 +18,19 @@ export interface Config {
   catalogAssistant?: {
     /**
      * LLM provider to use. One of: "anthropic" (default), "openai",
-     * "google", "mistral". Non-default providers require the matching
-     * `@ai-sdk/<provider>` package to be installed in the backend.
+     * "google", "mistral", "bedrock". Non-default providers require the
+     * matching `@ai-sdk/<provider>` package to be installed in the backend
+     * (the bedrock provider requires `@ai-sdk/amazon-bedrock`).
      */
     provider?: string;
     /**
      * Model id to use for question answering, passed through to the
      * selected provider (e.g. "claude-opus-4-8", "gpt-5",
      * "gemini-2.5-pro"). Defaults to "claude-opus-4-8" for the anthropic
-     * provider; required for any other provider.
+     * provider; required for any other provider. For the bedrock provider,
+     * use the Bedrock model id or cross-region inference profile id, e.g.
+     * "us.anthropic.claude-opus-4-8-v1:0" (copy the exact value from the
+     * Bedrock console → Model catalog after enabling model access).
      */
     model?: string;
     /**
@@ -49,6 +53,29 @@ export interface Config {
      * @visibility secret
      */
     anthropicApiKey?: string;
+    /**
+     * AWS region for the bedrock provider, e.g. "us-east-1". Required when
+     * provider is "bedrock".
+     */
+    awsRegion?: string;
+    /**
+     * Explicit AWS access key id for the bedrock provider. If omitted (with the
+     * secret key), the AWS default credential chain is used: env vars
+     * (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_SESSION_TOKEN), a shared
+     * profile, or an IAM role. Prefer the default chain (IAM role) in production.
+     * @visibility secret
+     */
+    awsAccessKeyId?: string;
+    /**
+     * Explicit AWS secret access key for the bedrock provider.
+     * @visibility secret
+     */
+    awsSecretAccessKey?: string;
+    /**
+     * Optional AWS session token for the bedrock provider (temporary creds).
+     * @visibility secret
+     */
+    awsSessionToken?: string;
     /**
      * Maximum number of catalog entities to include in the LLM context.
      * Defaults to 20.

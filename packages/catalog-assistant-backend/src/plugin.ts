@@ -84,7 +84,20 @@ export const catalogAssistantPlugin = createBackendPlugin({
           DEFAULT_MAX_OUTPUT_TOKENS;
 
         const baseURL = sub?.getOptionalString('baseURL');
-        const model = await resolveModel({ provider, modelId, apiKey, baseURL });
+        const awsRegion = sub?.getOptionalString('awsRegion');
+        const awsAccessKeyId = sub?.getOptionalString('awsAccessKeyId');
+        const awsSecretAccessKey = sub?.getOptionalString('awsSecretAccessKey');
+        const awsSessionToken = sub?.getOptionalString('awsSessionToken');
+        const model = await resolveModel({
+          provider,
+          modelId,
+          apiKey,
+          baseURL,
+          awsRegion,
+          awsAccessKeyId,
+          awsSecretAccessKey,
+          awsSessionToken,
+        });
         logger.info(
           `catalog-assistant: using provider '${provider}' model '${modelId}'`,
         );

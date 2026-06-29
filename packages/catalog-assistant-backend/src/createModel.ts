@@ -32,20 +32,30 @@ export const SUPPORTED_PROVIDERS: Record<
   openai: { pkg: '@ai-sdk/openai', factory: 'createOpenAI' },
   google: { pkg: '@ai-sdk/google', factory: 'createGoogleGenerativeAI' },
   mistral: { pkg: '@ai-sdk/mistral', factory: 'createMistral' },
+  bedrock: { pkg: '@ai-sdk/amazon-bedrock', factory: 'createAmazonBedrock' },
 };
 
 /**
  * @public
  */
 export interface ResolveModelOptions {
-  /** Provider key, e.g. `anthropic` (default), `openai`, `google`, `mistral`. */
+  /**
+   * Provider key, e.g. `anthropic` (default), `openai`, `google`, `mistral`,
+   * `bedrock`.
+   */
   provider: string;
-  /** Provider-specific model id, e.g. `claude-opus-4-8`, `gpt-5`. */
+  /**
+   * Provider-specific model id, e.g. `claude-opus-4-8`, `gpt-5`. For the
+   * `bedrock` provider this is the Bedrock model id or cross-region inference
+   * profile id, e.g. `us.anthropic.claude-opus-4-8-v1:0` (copy the exact value
+   * from the Bedrock console → Model catalog after enabling model access).
+   */
   modelId: string;
   /**
    * API key. If omitted, the provider's own SDK reads its conventional env var
    * (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_GENERATIVE_AI_API_KEY`,
-   * `MISTRAL_API_KEY`).
+   * `MISTRAL_API_KEY`). Not used by the `bedrock` provider, which authenticates
+   * with AWS credentials instead.
    */
   apiKey?: string;
   /**
@@ -57,6 +67,22 @@ export interface ResolveModelOptions {
    * but the SDK requires one.
    */
   baseURL?: string;
+  /**
+   * AWS region for the `bedrock` provider, e.g. `us-east-1`. Required when
+   * `provider` is `bedrock`.
+   */
+  awsRegion?: string;
+  /**
+   * Explicit AWS access key id for the `bedrock` provider. If omitted (along
+   * with the secret key), the AWS default credential chain is used — env vars
+   * (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`), a
+   * shared profile, or an IAM role. Prefer the default chain in production.
+   */
+  awsAccessKeyId?: string;
+  /** Explicit AWS secret access key for the `bedrock` provider. */
+  awsSecretAccessKey?: string;
+  /** Optional AWS session token for the `bedrock` provider (temporary creds). */
+  awsSessionToken?: string;
 }
 
 /**
@@ -72,7 +98,16 @@ export interface ResolveModelOptions {
 export async function resolveModel(
   opts: ResolveModelOptions,
 ): Promise<unknown> {
-  const { provider, modelId, apiKey, baseURL } = opts;
+  const {
+    provider,
+    modelId,
+    apiKey,
+    baseURL,
+    awsRegion,
+    awsAccessKeyId,
+    awsSecretAccessKey,
+    awsSessionToken,
+  } = opts;
   const entry = SUPPORTED_PROVIDERS[provider];
   if (!entry) {
     throw new Error(
@@ -102,9 +137,27 @@ export async function resolveModel(
     );
   }
 
-  const factoryOpts: { apiKey?: string; baseURL?: string } = {};
-  if (apiKey) factoryOpts.apiKey = apiKey;
-  if (baseURL) factoryOpts.baseURL = baseURL;
+  // Bedrock authenticates with AWS credentials + region, not apiKey/baseURL,
+  // so it gets its own option shape.
+  const factoryOpts: Record<string, unknown> = {};
+  if (provider === 'bedrock') {
+    if (!awsRegion) {
+      throw new Error(
+        "catalog-assistant: 'awsRegion' is required for the bedrock provider",
+      );
+    }
+    factoryOpts.region = awsRegion;
+    // Only pass explicit creds if both halves are present; otherwise let the
+    // AWS default credential chain (env vars, shared profile, IAM role) apply.
+    if (awsAccessKeyId && awsSecretAccessKey) {
+      factoryOpts.accessKeyId = awsAccessKeyId;
+      factoryOpts.secretAccessKey = awsSecretAccessKey;
+      if (awsSessionToken) factoryOpts.sessionToken = awsSessionToken;
+    }
+  } else {
+    if (apiKey) factoryOpts.apiKey = apiKey;
+    if (baseURL) factoryOpts.baseURL = baseURL;
+  }
 
   const instance = factory(factoryOpts);
   return instance(modelId);
