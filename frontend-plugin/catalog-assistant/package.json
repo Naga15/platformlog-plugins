@@ -1,0 +1,58 @@
+{
+  "name": "@theplatformlog/catalog-assistant",
+  "version": "0.1.0",
+  "description": "Backstage frontend plugin: ask grounded natural-language questions about the Software Catalog, with a model dropdown and citations. Pairs with @theplatformlog/catalog-assistant-backend.",
+  "backstage": {
+    "role": "frontend-plugin",
+    "pluginId": "catalog-assistant",
+    "pluginPackages": [
+      "@theplatformlog/catalog-assistant",
+      "@theplatformlog/catalog-assistant-backend"
+    ]
+  },
+  "sideEffects": false,
+  "publishConfig": {
+    "access": "public",
+    "main": "dist/index.esm.js",
+    "types": "dist/index.d.ts"
+  },
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "license": "Apache-2.0",
+  "author": "Naga15 <naga0448@gmail.com>",
+  "homepage": "https://theplatformlog.dev/catalog-assistant",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Naga15/platformlog-plugins.git",
+    "directory": "frontend-plugin/catalog-assistant"
+  },
+  "keywords": ["backstage", "catalog", "ai", "llm", "assistant"],
+  "scripts": {
+    "start": "backstage-cli package start",
+    "build": "backstage-cli package build",
+    "lint": "backstage-cli package lint",
+    "test": "backstage-cli package test",
+    "clean": "backstage-cli package clean"
+  },
+  "dependencies": {
+    "@backstage/core-components": "^0.17.0",
+    "@backstage/core-plugin-api": "^1.10.0",
+    "@backstage/theme": "^0.6.0",
+    "@material-ui/core": "^4.12.2",
+    "@material-ui/icons": "^4.9.1",
+    "react-use": "^17.6.0"
+  },
+  "peerDependencies": {
+    "react": "^17.0.0 || ^18.0.0",
+    "react-dom": "^17.0.0 || ^18.0.0",
+    "react-router-dom": "^6.3.0"
+  },
+  "devDependencies": {
+    "@backstage/cli": "^0.30.0",
+    "@backstage/test-utils": "^1.7.0",
+    "@testing-library/jest-dom": "^6.0.0",
+    "@testing-library/react": "^14.0.0",
+    "@types/react": "^18.0.0"
+  },
+  "files": ["dist"]
+}
