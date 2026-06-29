@@ -39,7 +39,7 @@ backend.add(import('@theplatformlog/catalog-assistant-backend'));
 
 ```yaml
 catalogAssistant:
-  # LLM provider: anthropic (default) | openai | google | mistral
+  # LLM provider: anthropic (default) | openai | google | mistral | bedrock
   provider: anthropic
   # Model id for the chosen provider. Defaults to 'claude-opus-4-8'
   # for anthropic; required for any other provider.
@@ -73,9 +73,53 @@ catalogAssistant:
   apiKey: ${OPENAI_API_KEY}
 ```
 
-Supported providers: `anthropic`, `openai`, `google`, `mistral`. Any model id
-the chosen provider's SDK accepts works — Claude (`claude-opus-4-8`,
+Supported providers: `anthropic`, `openai`, `google`, `mistral`, `bedrock`. Any
+model id the chosen provider's SDK accepts works — Claude (`claude-opus-4-8`,
 `claude-sonnet-4-6`, `claude-haiku-4-5`, …), GPT, Gemini, Mistral, etc.
+
+### AWS Bedrock (IAM role / IRSA on EKS)
+
+Use the `bedrock` provider to run any Bedrock-hosted model (Claude, Amazon Nova,
+Llama, Mistral) through your AWS account. Install the provider and the AWS
+credential resolver:
+
+```bash
+yarn --cwd packages/backend add @ai-sdk/amazon-bedrock @aws-sdk/credential-providers
+```
+
+**Recommended — no static keys (assume an IAM role).** With no `awsAccessKeyId`
+configured, the plugin resolves the AWS default credential chain, so a role is
+assumed automatically on EKS (IRSA / Pod Identity), EC2/ECS (instance role),
+or locally (SSO / shared profile / `AWS_*` env vars):
+
+```yaml
+catalogAssistant:
+  provider: bedrock
+  # Bedrock model id or cross-region inference profile id. Copy the exact
+  # value from the Bedrock console → Model catalog / Inference profiles
+  # after enabling Model access for the model.
+  model: us.anthropic.claude-opus-4-8-v1:0
+  awsRegion: us-east-1
+```
+
+For **IRSA**, attach an IAM role allowing `bedrock:InvokeModel` (and
+`bedrock:InvokeModelWithResponseStream`) on the model + inference-profile ARNs to
+the backend's Kubernetes ServiceAccount — e.g. via
+`eksctl create iamserviceaccount … --attach-policy-arn …`, or the
+`eks.amazonaws.com/role-arn` SA annotation. See
+[Use IRSA with the AWS SDK](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts-minimum-sdk.html).
+
+**Static credentials** (local testing) — set `awsAccessKeyId` / `awsSecretAccessKey`
+(both `secret`), or export a short-lived Bedrock API key as
+`AWS_BEARER_TOKEN_BEDROCK`. `@aws-sdk/credential-providers` is not needed for the
+static-key paths.
+
+**Cost note:** Bedrock has no free models — every model is billed per token. For
+grounded catalog Q&A the context is small and answers are short, so a cheap small
+model is very cost-effective: **Amazon Nova Micro** (`amazon.nova-micro-v1:0`,
+~$0.035/$0.14 per 1M in/out) or **Nova Lite** (`amazon.nova-lite-v1:0`) are the
+cheapest; **Claude Haiku 4.5** is a strong middle option. Reserve Opus/Sonnet for
+hard questions. For a truly $0 path, use the local Ollama setup below instead.
 
 ### Free and local models (cost-sensitive)
 
