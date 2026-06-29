@@ -185,6 +185,14 @@ export async function resolveModel(
     if (baseURL) factoryOpts.baseURL = baseURL;
   }
 
-  const instance = factory(factoryOpts);
+  const instance = factory(factoryOpts) as any;
+  // OpenAI-compatible endpoints (Ollama, Groq, OpenRouter, AWS Bedrock's
+  // OpenAI-compatible "Mantle" endpoint, …) universally speak Chat Completions.
+  // `@ai-sdk/openai` v2 defaults the callable to the Responses API, which many
+  // of those reject (e.g. Claude on Bedrock Mantle: "does not support the
+  // '/v1/responses' API"). Force Chat Completions for the openai provider.
+  if (provider === 'openai' && typeof instance.chat === 'function') {
+    return instance.chat(modelId);
+  }
   return instance(modelId);
 }
