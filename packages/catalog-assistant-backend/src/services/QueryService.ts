@@ -21,6 +21,7 @@ import {
   CatalogContextRetriever,
   ScoredEntity,
 } from './CatalogContextRetriever';
+import { ModelOption, ModelProvider } from './ModelProvider';
 
 /**
  * Minimal generateText shape we depend on from the Vercel AI SDK.
@@ -56,7 +57,23 @@ export class QueryService {
     private readonly generateText: GenerateTextFn,
     private readonly logger: LoggerService,
     private readonly maxOutputTokens: number,
+    /**
+     * Optional allowlist of selectable models. When present, callers may pick
+     * a model per request and the UI can list the options. When absent, every
+     * request uses the single `model` above (the original behaviour).
+     */
+    private readonly modelProvider?: ModelProvider,
   ) {}
+
+  /** Models offered to callers for selection (empty if none configured). */
+  listModels(): ModelOption[] {
+    return this.modelProvider?.list() ?? [];
+  }
+
+  /** The default model id, or undefined if no allowlist is configured. */
+  defaultModelId(): string | undefined {
+    return this.modelProvider?.defaultId();
+  }
 
   private static readonly SYSTEM_PROMPT = `You answer questions about a Backstage software catalog.
 Use only the catalog entities provided in the user message as your source of
@@ -68,12 +85,19 @@ When you cite an entity, refer to it by its entity reference
 
   async query(
     question: string,
-    options: { credentials?: { token?: string } } = {},
+    options: { credentials?: { token?: string }; model?: string } = {},
   ): Promise<QueryResult> {
     const trimmed = question.trim();
     if (!trimmed) {
       throw new InputError('question must not be empty');
     }
+
+    // Resolve the per-request model against the allowlist; fall back to the
+    // default model when no override is given (or no allowlist is configured).
+    const model =
+      options.model && this.modelProvider
+        ? await this.modelProvider.get(options.model)
+        : this.model;
 
     const scored = await this.retriever.retrieve(trimmed, options);
     if (scored.length === 0) {
@@ -90,7 +114,7 @@ When you cite an entity, refer to it by its entity reference
     );
 
     const { text } = await this.generateText({
-      model: this.model,
+      model,
       system: QueryService.SYSTEM_PROMPT,
       prompt,
       maxOutputTokens: this.maxOutputTokens,

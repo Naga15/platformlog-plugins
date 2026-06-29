@@ -32,12 +32,31 @@ export function createRouter(options: {
   const router = Router();
   router.use(express.json({ limit: '256kb' }));
 
+  // Lists the models a caller may select (the enabled allowlist) plus the
+  // default. Feeds the UI dropdown. Returns an empty list when no allowlist
+  // is configured (single-model deployments).
+  router.get(
+    '/v1/models',
+    asyncHandler(async (req, res) => {
+      await httpAuth.credentials(req, { allow: ['user', 'service'] });
+      res.json({
+        models: queryService.listModels(),
+        default: queryService.defaultModelId(),
+      });
+    }),
+  );
+
   router.post(
     '/v1/query',
     asyncHandler(async (req, res) => {
-      const body = req.body as { question?: unknown } | undefined;
+      const body = req.body as
+        | { question?: unknown; model?: unknown }
+        | undefined;
       if (!body || typeof body.question !== 'string') {
         throw new InputError('Request body must include a string `question`');
+      }
+      if (body.model !== undefined && typeof body.model !== 'string') {
+        throw new InputError('`model`, if provided, must be a string');
       }
 
       // Credential is read so a future retriever can use it to filter entities
@@ -51,6 +70,7 @@ export function createRouter(options: {
         credentials: {
           token: (credentials as { token?: string }).token,
         },
+        model: body.model,
       });
       logger.info(
         `catalog-assistant: answered question in ${Date.now() - start}ms`,

@@ -53,6 +53,33 @@ catalogAssistant:
   maxOutputTokens: 1024
 ```
 
+### Selectable models (allowlist + dropdown)
+
+Optionally expose several models that callers can pick per request (and that a
+UI can show in a dropdown). The `model` above stays the default used when a
+request doesn't specify one. Disable a model after testing by setting
+`enabled: false` (or removing it):
+
+```yaml
+catalogAssistant:
+  provider: bedrock
+  awsRegion: us-east-1
+  model: us.amazon.nova-lite-v1:0 # default when a request omits `model`
+  models:
+    - id: us.amazon.nova-lite-v1:0
+      label: Nova Lite (cheap, default)
+    - id: us.amazon.nova-micro-v1:0
+      label: Nova Micro (cheapest)
+    - id: us.anthropic.claude-haiku-4-5-v1:0
+      label: Claude Haiku 4.5 (best quality)
+      enabled: false # flip to true after you've tested it
+```
+
+The enabled models are served from `GET /v1/models` (for the dropdown), and a
+`POST /v1/query` may include a `model` field — it must be one of the enabled
+ids (or the default), otherwise the request is rejected with `400`. Omit the
+`models` list entirely to run a single fixed model (the original behaviour).
+
 `apiKey` is marked `secret` in the config schema; provide it via env var in
 production. (`anthropicApiKey` is still accepted as a deprecated alias.)
 
@@ -162,10 +189,10 @@ model handles most catalog Q&A well — reserve a frontier model for hard cases.
 
 ### `POST /api/catalog-assistant/v1/query`
 
-Request:
+Request (`model` is optional; defaults to the configured default model):
 
 ```json
-{ "question": "who owns the payments service?" }
+{ "question": "who owns the payments service?", "model": "us.amazon.nova-lite-v1:0" }
 ```
 
 Response:
@@ -177,8 +204,27 @@ Response:
 }
 ```
 
-Authentication uses the standard Backstage `httpAuth` service and accepts
-either a user or service credential.
+A `model` that is not in the enabled allowlist (and not the default) is
+rejected with `400`.
+
+### `GET /api/catalog-assistant/v1/models`
+
+Lists the selectable models for a UI dropdown, plus the default:
+
+```json
+{
+  "models": [
+    { "id": "us.amazon.nova-lite-v1:0", "label": "Nova Lite (cheap, default)" },
+    { "id": "us.amazon.nova-micro-v1:0", "label": "Nova Micro (cheapest)" }
+  ],
+  "default": "us.amazon.nova-lite-v1:0"
+}
+```
+
+Returns an empty `models` list when no allowlist is configured.
+
+Both endpoints authenticate via the standard Backstage `httpAuth` service and
+accept either a user or service credential.
 
 ## Architecture
 

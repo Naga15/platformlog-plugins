@@ -72,6 +72,34 @@ describe('createRouter', () => {
     );
   });
 
+  it('forwards a per-request model override to the QueryService', async () => {
+    const query = jest.fn().mockResolvedValue({ answer: 'ok', citations: [] });
+    const app = buildApp({ query });
+
+    const res = await request(app)
+      .post('/v1/query')
+      .send({ question: 'who owns a?', model: 'us.amazon.nova-lite-v1:0' });
+
+    expect(res.status).toEqual(200);
+    expect(query).toHaveBeenCalledWith(
+      'who owns a?',
+      expect.objectContaining({ model: 'us.amazon.nova-lite-v1:0' }),
+    );
+  });
+
+  it('rejects a non-string model', async () => {
+    const query = jest.fn();
+    const app = buildApp({ query });
+
+    const res = await request(app)
+      .post('/v1/query')
+      .send({ question: 'who owns a?', model: 123 });
+
+    expect(res.status).toEqual(400);
+    expect(res.body.error.message).toMatch(/`model`.*must be a string/);
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it('rejects requests without a string question', async () => {
     const query = jest.fn();
     const app = buildApp({ query });
@@ -81,5 +109,25 @@ describe('createRouter', () => {
     expect(res.status).toEqual(400);
     expect(res.body.error.message).toMatch(/must include a string `question`/);
     expect(query).not.toHaveBeenCalled();
+  });
+
+  it('GET /v1/models lists the selectable models and default', async () => {
+    const listModels = jest
+      .fn()
+      .mockReturnValue([
+        { id: 'us.amazon.nova-lite-v1:0', label: 'Nova Lite' },
+      ]);
+    const defaultModelId = jest
+      .fn()
+      .mockReturnValue('us.amazon.nova-lite-v1:0');
+    const app = buildApp({ listModels, defaultModelId } as Partial<QueryService>);
+
+    const res = await request(app).get('/v1/models');
+
+    expect(res.status).toEqual(200);
+    expect(res.body).toEqual({
+      models: [{ id: 'us.amazon.nova-lite-v1:0', label: 'Nova Lite' }],
+      default: 'us.amazon.nova-lite-v1:0',
+    });
   });
 });

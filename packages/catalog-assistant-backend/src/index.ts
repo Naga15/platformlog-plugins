@@ -37,3 +37,8 @@ export type {
   QueryResult,
   QueryService,
 } from './services/QueryService';
+export {
+  createModelProvider,
+  type ModelOption,
+  type ModelProvider,
+} from './services/ModelProvider';

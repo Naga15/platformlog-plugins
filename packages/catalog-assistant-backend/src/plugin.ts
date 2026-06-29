@@ -23,6 +23,10 @@ import { generateText } from 'ai';
 import { resolveModel } from './createModel';
 import { CatalogContextRetriever } from './services/CatalogContextRetriever';
 import { GenerateTextFn, QueryService } from './services/QueryService';
+import {
+  createModelProvider,
+  ModelOption,
+} from './services/ModelProvider';
 import { createRouter } from './router/createRouter';
 
 const DEFAULT_PROVIDER = 'anthropic';
@@ -88,19 +92,43 @@ export const catalogAssistantPlugin = createBackendPlugin({
         const awsAccessKeyId = sub?.getOptionalString('awsAccessKeyId');
         const awsSecretAccessKey = sub?.getOptionalString('awsSecretAccessKey');
         const awsSessionToken = sub?.getOptionalString('awsSessionToken');
-        const model = await resolveModel({
+        const baseModelOptions = {
           provider,
-          modelId,
           apiKey,
           baseURL,
           awsRegion,
           awsAccessKeyId,
           awsSecretAccessKey,
           awsSessionToken,
-        });
+        };
+
+        // Resolve the default eagerly so a misconfiguration fails fast at boot.
+        const model = await resolveModel({ ...baseModelOptions, modelId });
         logger.info(
-          `catalog-assistant: using provider '${provider}' model '${modelId}'`,
+          `catalog-assistant: using provider '${provider}' default model '${modelId}'`,
         );
+
+        // Optional allowlist of selectable models for per-request override and
+        // the UI dropdown. Enabled by default; drop entries to disable them.
+        const enabledModels: ModelOption[] = (
+          sub?.getOptionalConfigArray('models') ?? []
+        )
+          .filter(m => m.getOptionalBoolean('enabled') !== false)
+          .map(m => {
+            const id = m.getString('id');
+            return { id, label: m.getOptionalString('label') ?? id };
+          });
+        if (enabledModels.length > 0) {
+          logger.info(
+            `catalog-assistant: ${enabledModels.length} selectable model(s): ` +
+              enabledModels.map(m => m.id).join(', '),
+          );
+        }
+        const modelProvider = createModelProvider({
+          models: enabledModels,
+          defaultModelId: modelId,
+          baseOptions: baseModelOptions,
+        });
 
         const catalog = new CatalogClient({ discoveryApi: discovery });
         const retriever = new CatalogContextRetriever(
@@ -117,6 +145,7 @@ export const catalogAssistantPlugin = createBackendPlugin({
           generateText as unknown as GenerateTextFn,
           logger,
           maxOutputTokens,
+          modelProvider,
         );
 
         httpRouter.use(createRouter({ queryService, httpAuth, logger }));

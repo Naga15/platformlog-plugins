@@ -79,6 +79,23 @@ export interface Config {
      */
     awsSessionToken?: string;
     /**
+     * Selectable models offered to callers (e.g. a UI dropdown) and accepted
+     * as a per-request `model` override on POST /v1/query. Use this to expose
+     * a few cheap models and disable ones you don't want after testing by
+     * setting `enabled: false` (or removing the entry). The `model` above is
+     * still the default used when a request doesn't specify one, and is always
+     * allowed even if it's not listed here. When this list is omitted, the
+     * single default `model` is used for every request.
+     */
+    models?: Array<{
+      /** Provider model id, e.g. "us.amazon.nova-lite-v1:0". */
+      id: string;
+      /** Human-friendly name shown in the UI. Defaults to `id`. */
+      label?: string;
+      /** Set false to hide/disable this model. Defaults to true. */
+      enabled?: boolean;
+    }>;
+    /**
      * Maximum number of catalog entities to include in the LLM context.
      * Defaults to 20.
      */

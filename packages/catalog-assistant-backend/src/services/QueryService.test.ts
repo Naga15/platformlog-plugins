@@ -113,6 +113,69 @@ describe('QueryService', () => {
     });
   });
 
+  it('resolves a per-request model via the model provider', async () => {
+    const generateText = jest.fn().mockResolvedValue({ text: 'ok' });
+    const modelProvider = {
+      list: () => [{ id: 'nova', label: 'Nova' }],
+      defaultId: () => 'default-model',
+      get: jest.fn().mockResolvedValue('nova-model'),
+    };
+    const svc = new QueryService(
+      fakeRetriever([entity('a')]),
+      'default-model',
+      generateText,
+      logger,
+      256,
+      modelProvider,
+    );
+
+    await svc.query('a', { model: 'nova' });
+
+    expect(modelProvider.get).toHaveBeenCalledWith('nova');
+    expect(generateText.mock.calls[0][0].model).toEqual('nova-model');
+  });
+
+  it('uses the default model when no override is given', async () => {
+    const generateText = jest.fn().mockResolvedValue({ text: 'ok' });
+    const modelProvider = {
+      list: () => [],
+      defaultId: () => 'default-model',
+      get: jest.fn(),
+    };
+    const svc = new QueryService(
+      fakeRetriever([entity('a')]),
+      'default-model',
+      generateText,
+      logger,
+      256,
+      modelProvider,
+    );
+
+    await svc.query('a');
+
+    expect(modelProvider.get).not.toHaveBeenCalled();
+    expect(generateText.mock.calls[0][0].model).toEqual('default-model');
+  });
+
+  it('exposes the model list and default from the provider', () => {
+    const modelProvider = {
+      list: () => [{ id: 'nova', label: 'Nova' }],
+      defaultId: () => 'default-model',
+      get: jest.fn(),
+    };
+    const svc = new QueryService(
+      fakeRetriever([]),
+      'default-model',
+      jest.fn(),
+      logger,
+      256,
+      modelProvider,
+    );
+
+    expect(svc.listModels()).toEqual([{ id: 'nova', label: 'Nova' }]);
+    expect(svc.defaultModelId()).toEqual('default-model');
+  });
+
   it('includes entity relations in the prompt when present', async () => {
     const generateText = jest.fn().mockResolvedValue({ text: 'ok' });
     const svc = new QueryService(
