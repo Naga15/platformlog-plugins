@@ -36,7 +36,10 @@ export interface Config {
     /**
      * API key for the selected provider. If omitted, the provider SDK reads
      * its conventional env var (ANTHROPIC_API_KEY, OPENAI_API_KEY,
-     * GOOGLE_GENERATIVE_AI_API_KEY, MISTRAL_API_KEY).
+     * GOOGLE_GENERATIVE_AI_API_KEY, MISTRAL_API_KEY). For the `bedrock`
+     * provider this is a Bedrock API key (bearer token) — short-lived, handy
+     * for testing without IAM creds; if omitted, the provider reads
+     * AWS_BEARER_TOKEN_BEDROCK or falls back to IAM creds / role.
      * @visibility secret
      */
     apiKey?: string;

@@ -149,7 +149,12 @@ export async function resolveModel(
       );
     }
     factoryOpts.region = awsRegion;
-    if (awsAccessKeyId && awsSecretAccessKey) {
+    if (apiKey) {
+      // Bedrock API key (bearer token) — short-lived, good for testing without
+      // IAM creds. The provider also reads AWS_BEARER_TOKEN_BEDROCK from the
+      // environment if `apiKey` is omitted.
+      factoryOpts.apiKey = apiKey;
+    } else if (awsAccessKeyId && awsSecretAccessKey) {
       // Explicit static credentials.
       factoryOpts.accessKeyId = awsAccessKeyId;
       factoryOpts.secretAccessKey = awsSecretAccessKey;
