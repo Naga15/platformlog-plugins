@@ -15,31 +15,22 @@
  */
 
 /**
- * The catalog-assistant backend plugin lets users ask natural-language
- * questions about their Backstage catalog and get answers grounded in
- * catalog entities, with citations.
+ * Frontend plugin for the catalog-assistant: a page with a question prompt, a
+ * model dropdown (from the backend allowlist), and a grounded answer + citations.
  *
  * @packageDocumentation
  */
 
-export { catalogAssistantPlugin as default } from './plugin';
 export {
-  resolveModel,
-  SUPPORTED_PROVIDERS,
-  type ResolveModelOptions,
-} from './createModel';
+  catalogAssistantPlugin,
+  CatalogAssistantPage,
+  CatalogAssistantChat,
+} from './plugin';
+export { catalogAssistantApiRef } from './api/types';
 export type {
-  CatalogContextRetriever,
-  ScoredEntity,
-} from './services/CatalogContextRetriever';
-export type {
-  ChatMessage,
-  GenerateTextFn,
+  CatalogAssistantApi,
+  ModelOption,
+  ModelsResponse,
   QueryResult,
-  QueryService,
-} from './services/QueryService';
-export {
-  createModelProvider,
-  type ModelOption,
-  type ModelProvider,
-} from './services/ModelProvider';
+} from './api/types';
+export { rootRouteRef } from './routes';

@@ -18,21 +18,28 @@ export interface Config {
   catalogAssistant?: {
     /**
      * LLM provider to use. One of: "anthropic" (default), "openai",
-     * "google", "mistral". Non-default providers require the matching
-     * `@ai-sdk/<provider>` package to be installed in the backend.
+     * "google", "mistral", "bedrock". Non-default providers require the
+     * matching `@ai-sdk/<provider>` package to be installed in the backend
+     * (the bedrock provider requires `@ai-sdk/amazon-bedrock`).
      */
     provider?: string;
     /**
      * Model id to use for question answering, passed through to the
      * selected provider (e.g. "claude-opus-4-8", "gpt-5",
      * "gemini-2.5-pro"). Defaults to "claude-opus-4-8" for the anthropic
-     * provider; required for any other provider.
+     * provider; required for any other provider. For the bedrock provider,
+     * use the Bedrock model id or cross-region inference profile id, e.g.
+     * "us.anthropic.claude-opus-4-8-v1:0" (copy the exact value from the
+     * Bedrock console → Model catalog after enabling model access).
      */
     model?: string;
     /**
      * API key for the selected provider. If omitted, the provider SDK reads
      * its conventional env var (ANTHROPIC_API_KEY, OPENAI_API_KEY,
-     * GOOGLE_GENERATIVE_AI_API_KEY, MISTRAL_API_KEY).
+     * GOOGLE_GENERATIVE_AI_API_KEY, MISTRAL_API_KEY). For the `bedrock`
+     * provider this is a Bedrock API key (bearer token) — short-lived, handy
+     * for testing without IAM creds; if omitted, the provider reads
+     * AWS_BEARER_TOKEN_BEDROCK or falls back to IAM creds / role.
      * @visibility secret
      */
     apiKey?: string;
@@ -49,6 +56,48 @@ export interface Config {
      * @visibility secret
      */
     anthropicApiKey?: string;
+    /**
+     * AWS region for the bedrock provider, e.g. "us-east-1". Required when
+     * provider is "bedrock".
+     */
+    awsRegion?: string;
+    /**
+     * Explicit AWS access key id for the bedrock provider. If omitted (with the
+     * secret key), the AWS default credential chain is used so an IAM role is
+     * assumed automatically: EKS IRSA / Pod Identity, EC2/ECS instance roles,
+     * SSO, a shared profile, or AWS_* env vars. Requires the
+     * `@aws-sdk/credential-providers` package in the backend. Prefer this (an
+     * IAM role, no static keys) in production.
+     * @visibility secret
+     */
+    awsAccessKeyId?: string;
+    /**
+     * Explicit AWS secret access key for the bedrock provider.
+     * @visibility secret
+     */
+    awsSecretAccessKey?: string;
+    /**
+     * Optional AWS session token for the bedrock provider (temporary creds).
+     * @visibility secret
+     */
+    awsSessionToken?: string;
+    /**
+     * Selectable models offered to callers (e.g. a UI dropdown) and accepted
+     * as a per-request `model` override on POST /v1/query. Use this to expose
+     * a few cheap models and disable ones you don't want after testing by
+     * setting `enabled: false` (or removing the entry). The `model` above is
+     * still the default used when a request doesn't specify one, and is always
+     * allowed even if it's not listed here. When this list is omitted, the
+     * single default `model` is used for every request.
+     */
+    models?: Array<{
+      /** Provider model id, e.g. "us.amazon.nova-lite-v1:0". */
+      id: string;
+      /** Human-friendly name shown in the UI. Defaults to `id`. */
+      label?: string;
+      /** Set false to hide/disable this model. Defaults to true. */
+      enabled?: boolean;
+    }>;
     /**
      * Maximum number of catalog entities to include in the LLM context.
      * Defaults to 20.

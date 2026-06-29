@@ -21,16 +21,30 @@ import {
   CatalogContextRetriever,
   ScoredEntity,
 } from './CatalogContextRetriever';
+import { ModelOption, ModelProvider } from './ModelProvider';
+
+/**
+ * A prior conversation turn. Sent by the client so multi-turn follow-ups
+ * ("who owns it?") have context. The backend stays stateless — the client
+ * owns the history.
+ * @public
+ */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
 
 /**
  * Minimal generateText shape we depend on from the Vercel AI SDK.
  * Extracted so tests can stub it without pulling in real model weights.
+ * Either `prompt` (single turn) or `messages` (multi-turn) is sent.
  * @public
  */
 export type GenerateTextFn = (args: {
   model: unknown;
   system: string;
-  prompt: string;
+  prompt?: string;
+  messages?: Array<{ role: 'system' | 'user' | 'assistant'; content: string }>;
   maxOutputTokens?: number;
 }) => Promise<{ text: string }>;
 
@@ -56,26 +70,65 @@ export class QueryService {
     private readonly generateText: GenerateTextFn,
     private readonly logger: LoggerService,
     private readonly maxOutputTokens: number,
+    /**
+     * Optional allowlist of selectable models. When present, callers may pick
+     * a model per request and the UI can list the options. When absent, every
+     * request uses the single `model` above (the original behaviour).
+     */
+    private readonly modelProvider?: ModelProvider,
   ) {}
 
+  /** Models offered to callers for selection (empty if none configured). */
+  listModels(): ModelOption[] {
+    return this.modelProvider?.list() ?? [];
+  }
+
+  /** The default model id, or undefined if no allowlist is configured. */
+  defaultModelId(): string | undefined {
+    return this.modelProvider?.defaultId();
+  }
+
   private static readonly SYSTEM_PROMPT = `You answer questions about a Backstage software catalog.
-Use only the catalog entities provided in the user message as your source of
-truth. If the entities do not contain the answer, say so plainly — do not
-fabricate ownership, dependencies, or relationships.
+This is a conversation: earlier turns give context (e.g. "it" may refer to an
+entity discussed before), but ground every answer in the catalog entities
+provided in the latest user message as your source of truth. If those entities
+do not contain the answer, say so plainly — do not fabricate ownership,
+dependencies, or relationships.
 
 When you cite an entity, refer to it by its entity reference
 (e.g. "component:default/payments-api"). Be concise.`;
 
+  /** Cap on prior turns threaded into the prompt, to bound context and cost. */
+  private static readonly MAX_HISTORY_MESSAGES = 20;
+
   async query(
     question: string,
-    options: { credentials?: { token?: string } } = {},
+    options: {
+      credentials?: { token?: string };
+      model?: string;
+      history?: ChatMessage[];
+    } = {},
   ): Promise<QueryResult> {
     const trimmed = question.trim();
     if (!trimmed) {
       throw new InputError('question must not be empty');
     }
 
-    const scored = await this.retriever.retrieve(trimmed, options);
+    // Resolve the per-request model against the allowlist; fall back to the
+    // default model when no override is given (or no allowlist is configured).
+    const model =
+      options.model && this.modelProvider
+        ? await this.modelProvider.get(options.model)
+        : this.model;
+
+    const history = (options.history ?? []).slice(
+      -QueryService.MAX_HISTORY_MESSAGES,
+    );
+
+    // Augment retrieval with recent user turns so follow-ups like "who owns
+    // it?" still surface the entity discussed earlier in the conversation.
+    const retrievalQuery = buildRetrievalQuery(trimmed, history);
+    const scored = await this.retriever.retrieve(retrievalQuery, options);
     if (scored.length === 0) {
       return {
         answer:
@@ -84,15 +137,20 @@ When you cite an entity, refer to it by its entity reference
       };
     }
 
-    const prompt = buildPrompt(trimmed, scored);
+    // Prior turns for context + the grounded current turn (entities + question).
+    const messages = [
+      ...history.map(m => ({ role: m.role, content: m.content })),
+      { role: 'user' as const, content: buildPrompt(trimmed, scored) },
+    ];
     this.logger.debug(
-      `catalog-assistant: ${scored.length} entities retrieved for question`,
+      `catalog-assistant: ${scored.length} entities retrieved, ` +
+        `${history.length} prior turn(s)`,
     );
 
     const { text } = await this.generateText({
-      model: this.model,
+      model,
       system: QueryService.SYSTEM_PROMPT,
-      prompt,
+      messages,
       maxOutputTokens: this.maxOutputTokens,
     });
 
@@ -101,6 +159,19 @@ When you cite an entity, refer to it by its entity reference
       citations: scored.map(s => s.entityRef),
     };
   }
+}
+
+/**
+ * Builds the keyword-retrieval query from the current question plus the last
+ * couple of user turns, so pronoun-y follow-ups still retrieve the entity that
+ * was named earlier.
+ */
+function buildRetrievalQuery(question: string, history: ChatMessage[]): string {
+  const recentUserTurns = history
+    .filter(m => m.role === 'user')
+    .slice(-2)
+    .map(m => m.content);
+  return [...recentUserTurns, question].join('\n').trim();
 }
 
 function buildPrompt(question: string, scored: ScoredEntity[]): string {

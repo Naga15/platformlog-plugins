@@ -78,10 +78,44 @@ describe('QueryService', () => {
     const call = generateText.mock.calls[0][0];
     expect(call.model).toEqual('mock-model');
     expect(call.system).toMatch(/Backstage software catalog/);
-    expect(call.prompt).toContain('component:default/payments-api');
-    expect(call.prompt).toContain('owner: group:platform');
-    expect(call.prompt).toContain('Question: who owns payments?');
+    // The grounded content is the last (current) user message.
+    const lastTurn = call.messages[call.messages.length - 1];
+    expect(lastTurn.role).toEqual('user');
+    expect(lastTurn.content).toContain('component:default/payments-api');
+    expect(lastTurn.content).toContain('owner: group:platform');
+    expect(lastTurn.content).toContain('Question: who owns payments?');
     expect(call.maxOutputTokens).toEqual(256);
+  });
+
+  it('threads prior conversation turns before the grounded question', async () => {
+    const generateText = jest.fn().mockResolvedValue({ text: 'ok' });
+    const svc = new QueryService(
+      fakeRetriever([entity('payments-api')]),
+      'mock-model',
+      generateText,
+      logger,
+      256,
+    );
+
+    await svc.query('who owns it?', {
+      history: [
+        { role: 'user', content: 'tell me about payments-api' },
+        { role: 'assistant', content: 'payments-api handles payments.' },
+      ],
+    });
+
+    const { messages } = generateText.mock.calls[0][0];
+    expect(messages).toHaveLength(3); // 2 history + 1 grounded current turn
+    expect(messages[0]).toEqual({
+      role: 'user',
+      content: 'tell me about payments-api',
+    });
+    expect(messages[1]).toEqual({
+      role: 'assistant',
+      content: 'payments-api handles payments.',
+    });
+    expect(messages[2].role).toEqual('user');
+    expect(messages[2].content).toContain('Question: who owns it?');
   });
 
   it('throws InputError on an empty question', async () => {
@@ -113,6 +147,69 @@ describe('QueryService', () => {
     });
   });
 
+  it('resolves a per-request model via the model provider', async () => {
+    const generateText = jest.fn().mockResolvedValue({ text: 'ok' });
+    const modelProvider = {
+      list: () => [{ id: 'nova', label: 'Nova' }],
+      defaultId: () => 'default-model',
+      get: jest.fn().mockResolvedValue('nova-model'),
+    };
+    const svc = new QueryService(
+      fakeRetriever([entity('a')]),
+      'default-model',
+      generateText,
+      logger,
+      256,
+      modelProvider,
+    );
+
+    await svc.query('a', { model: 'nova' });
+
+    expect(modelProvider.get).toHaveBeenCalledWith('nova');
+    expect(generateText.mock.calls[0][0].model).toEqual('nova-model');
+  });
+
+  it('uses the default model when no override is given', async () => {
+    const generateText = jest.fn().mockResolvedValue({ text: 'ok' });
+    const modelProvider = {
+      list: () => [],
+      defaultId: () => 'default-model',
+      get: jest.fn(),
+    };
+    const svc = new QueryService(
+      fakeRetriever([entity('a')]),
+      'default-model',
+      generateText,
+      logger,
+      256,
+      modelProvider,
+    );
+
+    await svc.query('a');
+
+    expect(modelProvider.get).not.toHaveBeenCalled();
+    expect(generateText.mock.calls[0][0].model).toEqual('default-model');
+  });
+
+  it('exposes the model list and default from the provider', () => {
+    const modelProvider = {
+      list: () => [{ id: 'nova', label: 'Nova' }],
+      defaultId: () => 'default-model',
+      get: jest.fn(),
+    };
+    const svc = new QueryService(
+      fakeRetriever([]),
+      'default-model',
+      jest.fn(),
+      logger,
+      256,
+      modelProvider,
+    );
+
+    expect(svc.listModels()).toEqual([{ id: 'nova', label: 'Nova' }]);
+    expect(svc.defaultModelId()).toEqual('default-model');
+  });
+
   it('includes entity relations in the prompt when present', async () => {
     const generateText = jest.fn().mockResolvedValue({ text: 'ok' });
     const svc = new QueryService(
@@ -130,8 +227,9 @@ describe('QueryService', () => {
 
     await svc.query('payments');
 
-    const prompt = generateText.mock.calls[0][0].prompt as string;
-    expect(prompt).toContain('dependsOn: resource:default/payments-db');
-    expect(prompt).toContain('providesApis: api:default/payments');
+    const { messages } = generateText.mock.calls[0][0];
+    const content = messages[messages.length - 1].content as string;
+    expect(content).toContain('dependsOn: resource:default/payments-db');
+    expect(content).toContain('providesApis: api:default/payments');
   });
 });

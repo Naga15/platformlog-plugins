@@ -14,10 +14,36 @@
  * limitations under the License.
  */
 
-import { HttpAuthService, LoggerService } from '@backstage/backend-plugin-api';
+import {
+  AuthService,
+  HttpAuthService,
+  LoggerService,
+} from '@backstage/backend-plugin-api';
 import { InputError } from '@backstage/errors';
 import express, { NextFunction, Request, Response, Router } from 'express';
-import { QueryService } from '../services/QueryService';
+import { ChatMessage, QueryService } from '../services/QueryService';
+
+/** Validates and normalizes the optional `history` field from a request body. */
+function parseHistory(raw: unknown): ChatMessage[] | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(raw)) {
+    throw new InputError('`history`, if provided, must be an array');
+  }
+  return raw.map((m, i) => {
+    const turn = m as { role?: unknown; content?: unknown };
+    if (
+      (turn?.role !== 'user' && turn?.role !== 'assistant') ||
+      typeof turn?.content !== 'string'
+    ) {
+      throw new InputError(
+        `history[${i}] must be { role: 'user' | 'assistant', content: string }`,
+      );
+    }
+    return { role: turn.role, content: turn.content };
+  });
+}
 
 /**
  * Builds the express router exposing `POST /v1/query`.
@@ -26,31 +52,58 @@ import { QueryService } from '../services/QueryService';
 export function createRouter(options: {
   queryService: QueryService;
   httpAuth: HttpAuthService;
+  auth: AuthService;
   logger: LoggerService;
 }): Router {
-  const { queryService, httpAuth, logger } = options;
+  const { queryService, httpAuth, auth, logger } = options;
   const router = Router();
   router.use(express.json({ limit: '256kb' }));
+
+  // Lists the models a caller may select (the enabled allowlist) plus the
+  // default. Feeds the UI dropdown. Returns an empty list when no allowlist
+  // is configured (single-model deployments).
+  router.get(
+    '/v1/models',
+    asyncHandler(async (req, res) => {
+      await httpAuth.credentials(req, { allow: ['user', 'service'] });
+      res.json({
+        models: queryService.listModels(),
+        default: queryService.defaultModelId(),
+      });
+    }),
+  );
 
   router.post(
     '/v1/query',
     asyncHandler(async (req, res) => {
-      const body = req.body as { question?: unknown } | undefined;
+      const body = req.body as
+        | { question?: unknown; model?: unknown; history?: unknown }
+        | undefined;
       if (!body || typeof body.question !== 'string') {
         throw new InputError('Request body must include a string `question`');
       }
+      if (body.model !== undefined && typeof body.model !== 'string') {
+        throw new InputError('`model`, if provided, must be a string');
+      }
+      const history = parseHistory(body.history);
 
       // Credential is read so a future retriever can use it to filter entities
       // the caller can actually see. Today's retriever ignores it.
-      const credentials = await httpAuth.credentials(req, {
-        allow: ['user', 'service'],
+      // Authenticate the caller to this endpoint.
+      await httpAuth.credentials(req, { allow: ['user', 'service'] });
+      // Read the catalog as this plugin's own service identity — works for any
+      // caller (user, service, or external token); the retriever does no
+      // per-user filtering today.
+      const { token } = await auth.getPluginRequestToken({
+        onBehalfOf: await auth.getOwnServiceCredentials(),
+        targetPluginId: 'catalog',
       });
 
       const start = Date.now();
       const result = await queryService.query(body.question, {
-        credentials: {
-          token: (credentials as { token?: string }).token,
-        },
+        credentials: { token },
+        model: body.model,
+        history,
       });
       logger.info(
         `catalog-assistant: answered question in ${Date.now() - start}ms`,

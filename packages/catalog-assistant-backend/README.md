@@ -39,7 +39,7 @@ backend.add(import('@theplatformlog/catalog-assistant-backend'));
 
 ```yaml
 catalogAssistant:
-  # LLM provider: anthropic (default) | openai | google | mistral
+  # LLM provider: anthropic (default) | openai | google | mistral | bedrock
   provider: anthropic
   # Model id for the chosen provider. Defaults to 'claude-opus-4-8'
   # for anthropic; required for any other provider.
@@ -52,6 +52,33 @@ catalogAssistant:
   # Defaults to 1024
   maxOutputTokens: 1024
 ```
+
+### Selectable models (allowlist + dropdown)
+
+Optionally expose several models that callers can pick per request (and that a
+UI can show in a dropdown). The `model` above stays the default used when a
+request doesn't specify one. Disable a model after testing by setting
+`enabled: false` (or removing it):
+
+```yaml
+catalogAssistant:
+  provider: bedrock
+  awsRegion: us-east-1
+  model: us.amazon.nova-lite-v1:0 # default when a request omits `model`
+  models:
+    - id: us.amazon.nova-lite-v1:0
+      label: Nova Lite (cheap, default)
+    - id: us.amazon.nova-micro-v1:0
+      label: Nova Micro (cheapest)
+    - id: us.anthropic.claude-haiku-4-5-v1:0
+      label: Claude Haiku 4.5 (best quality)
+      enabled: false # flip to true after you've tested it
+```
+
+The enabled models are served from `GET /v1/models` (for the dropdown), and a
+`POST /v1/query` may include a `model` field — it must be one of the enabled
+ids (or the default), otherwise the request is rejected with `400`. Omit the
+`models` list entirely to run a single fixed model (the original behaviour).
 
 `apiKey` is marked `secret` in the config schema; provide it via env var in
 production. (`anthropicApiKey` is still accepted as a deprecated alias.)
@@ -73,9 +100,58 @@ catalogAssistant:
   apiKey: ${OPENAI_API_KEY}
 ```
 
-Supported providers: `anthropic`, `openai`, `google`, `mistral`. Any model id
-the chosen provider's SDK accepts works — Claude (`claude-opus-4-8`,
+Supported providers: `anthropic`, `openai`, `google`, `mistral`, `bedrock`. Any
+model id the chosen provider's SDK accepts works — Claude (`claude-opus-4-8`,
 `claude-sonnet-4-6`, `claude-haiku-4-5`, …), GPT, Gemini, Mistral, etc.
+
+### AWS Bedrock (IAM role / IRSA on EKS)
+
+Use the `bedrock` provider to run any Bedrock-hosted model (Claude, Amazon Nova,
+Llama, Mistral) through your AWS account. Install the provider and the AWS
+credential resolver:
+
+```bash
+yarn --cwd packages/backend add "@ai-sdk/amazon-bedrock@^3" @aws-sdk/credential-providers
+```
+
+> **Pin the AI-SDK generation.** `@ai-sdk/amazon-bedrock` must match your `ai`
+> core: `ai@5` ↔ `@ai-sdk/amazon-bedrock@3` (model spec v2). A 2.x provider
+> (spec v1) or 5.x (spec v4) throws `Unsupported model version` — keep all
+> `@ai-sdk/*` providers on the same generation as `ai`.
+
+**Recommended — no static keys (assume an IAM role).** With no `awsAccessKeyId`
+configured, the plugin resolves the AWS default credential chain, so a role is
+assumed automatically on EKS (IRSA / Pod Identity), EC2/ECS (instance role),
+or locally (SSO / shared profile / `AWS_*` env vars):
+
+```yaml
+catalogAssistant:
+  provider: bedrock
+  # Bedrock model id or cross-region inference profile id. Copy the exact
+  # value from the Bedrock console → Model catalog / Inference profiles
+  # after enabling Model access for the model.
+  model: us.anthropic.claude-opus-4-8-v1:0
+  awsRegion: us-east-1
+```
+
+For **IRSA**, attach an IAM role allowing `bedrock:InvokeModel` (and
+`bedrock:InvokeModelWithResponseStream`) on the model + inference-profile ARNs to
+the backend's Kubernetes ServiceAccount — e.g. via
+`eksctl create iamserviceaccount … --attach-policy-arn …`, or the
+`eks.amazonaws.com/role-arn` SA annotation. See
+[Use IRSA with the AWS SDK](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts-minimum-sdk.html).
+
+**Static credentials** (local testing) — set `awsAccessKeyId` / `awsSecretAccessKey`
+(both `secret`), or export a short-lived Bedrock API key as
+`AWS_BEARER_TOKEN_BEDROCK`. `@aws-sdk/credential-providers` is not needed for the
+static-key paths.
+
+**Cost note:** Bedrock has no free models — every model is billed per token. For
+grounded catalog Q&A the context is small and answers are short, so a cheap small
+model is very cost-effective: **Amazon Nova Micro** (`amazon.nova-micro-v1:0`,
+~$0.035/$0.14 per 1M in/out) or **Nova Lite** (`amazon.nova-lite-v1:0`) are the
+cheapest; **Claude Haiku 4.5** is a strong middle option. Reserve Opus/Sonnet for
+hard questions. For a truly $0 path, use the local Ollama setup below instead.
 
 ### Free and local models (cost-sensitive)
 
@@ -118,10 +194,18 @@ model handles most catalog Q&A well — reserve a frontier model for hard cases.
 
 ### `POST /api/catalog-assistant/v1/query`
 
-Request:
+Request (`model` and `history` are optional; `model` defaults to the configured
+default; `history` carries prior turns for multi-turn follow-ups):
 
 ```json
-{ "question": "who owns the payments service?" }
+{
+  "question": "who owns it?",
+  "model": "us.amazon.nova-lite-v1:0",
+  "history": [
+    { "role": "user", "content": "tell me about payments-api" },
+    { "role": "assistant", "content": "payments-api handles payments." }
+  ]
+}
 ```
 
 Response:
@@ -133,8 +217,27 @@ Response:
 }
 ```
 
-Authentication uses the standard Backstage `httpAuth` service and accepts
-either a user or service credential.
+A `model` that is not in the enabled allowlist (and not the default) is
+rejected with `400`.
+
+### `GET /api/catalog-assistant/v1/models`
+
+Lists the selectable models for a UI dropdown, plus the default:
+
+```json
+{
+  "models": [
+    { "id": "us.amazon.nova-lite-v1:0", "label": "Nova Lite (cheap, default)" },
+    { "id": "us.amazon.nova-micro-v1:0", "label": "Nova Micro (cheapest)" }
+  ],
+  "default": "us.amazon.nova-lite-v1:0"
+}
+```
+
+Returns an empty `models` list when no allowlist is configured.
+
+Both endpoints authenticate via the standard Backstage `httpAuth` service and
+accept either a user or service credential.
 
 ## Architecture
 
@@ -169,7 +272,10 @@ Both feed off the same underlying catalog; the audiences are opposite.
 
 ## Limitations
 
-- **No conversation memory.** Each request is one-shot.
+- **Stateless multi-turn.** The backend keeps no history; the client sends
+  prior turns as `history` on each `POST /v1/query` (capped server-side), and
+  recent user turns are folded into retrieval so follow-ups ("who owns it?")
+  resolve. There is no server-side persistence — clear/scope is the client's job.
 - **Keyword retrieval only.** Compound questions ("services tagged X that
   depend on Y") are answered as well as the LLM can reason over the retrieved
   page; there is no graph traversal at retrieval time.
