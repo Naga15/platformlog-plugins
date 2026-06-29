@@ -56,7 +56,7 @@
     "zod": "^3.25.76 || ^4.0.0"
   },
   "peerDependencies": {
-    "@ai-sdk/amazon-bedrock": "^2.0.0 || ^3.0.0",
+    "@ai-sdk/amazon-bedrock": "^3.0.0",
     "@ai-sdk/google": "^2.0.0",
     "@ai-sdk/mistral": "^2.0.0",
     "@ai-sdk/openai": "^2.0.0",

@@ -111,8 +111,13 @@ Llama, Mistral) through your AWS account. Install the provider and the AWS
 credential resolver:
 
 ```bash
-yarn --cwd packages/backend add @ai-sdk/amazon-bedrock @aws-sdk/credential-providers
+yarn --cwd packages/backend add "@ai-sdk/amazon-bedrock@^3" @aws-sdk/credential-providers
 ```
+
+> **Pin the AI-SDK generation.** `@ai-sdk/amazon-bedrock` must match your `ai`
+> core: `ai@5` ↔ `@ai-sdk/amazon-bedrock@3` (model spec v2). A 2.x provider
+> (spec v1) or 5.x (spec v4) throws `Unsupported model version` — keep all
+> `@ai-sdk/*` providers on the same generation as `ai`.
 
 **Recommended — no static keys (assume an IAM role).** With no `awsAccessKeyId`
 configured, the plugin resolves the AWS default credential chain, so a role is
