@@ -60,9 +60,11 @@ export interface Config {
     awsRegion?: string;
     /**
      * Explicit AWS access key id for the bedrock provider. If omitted (with the
-     * secret key), the AWS default credential chain is used: env vars
-     * (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY / AWS_SESSION_TOKEN), a shared
-     * profile, or an IAM role. Prefer the default chain (IAM role) in production.
+     * secret key), the AWS default credential chain is used so an IAM role is
+     * assumed automatically: EKS IRSA / Pod Identity, EC2/ECS instance roles,
+     * SSO, a shared profile, or AWS_* env vars. Requires the
+     * `@aws-sdk/credential-providers` package in the backend. Prefer this (an
+     * IAM role, no static keys) in production.
      * @visibility secret
      */
     awsAccessKeyId?: string;

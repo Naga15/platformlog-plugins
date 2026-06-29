@@ -74,9 +74,11 @@ export interface ResolveModelOptions {
   awsRegion?: string;
   /**
    * Explicit AWS access key id for the `bedrock` provider. If omitted (along
-   * with the secret key), the AWS default credential chain is used — env vars
-   * (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_SESSION_TOKEN`), a
-   * shared profile, or an IAM role. Prefer the default chain in production.
+   * with the secret key), the AWS default credential chain is used so an IAM
+   * role is assumed automatically — EKS IRSA / Pod Identity, EC2/ECS instance
+   * roles, SSO, a shared profile, or AWS_* env vars. This requires the
+   * `@aws-sdk/credential-providers` package to be installed in the backend.
+   * Prefer this (an IAM role, no static keys) in production.
    */
   awsAccessKeyId?: string;
   /** Explicit AWS secret access key for the `bedrock` provider. */
@@ -147,12 +149,31 @@ export async function resolveModel(
       );
     }
     factoryOpts.region = awsRegion;
-    // Only pass explicit creds if both halves are present; otherwise let the
-    // AWS default credential chain (env vars, shared profile, IAM role) apply.
     if (awsAccessKeyId && awsSecretAccessKey) {
+      // Explicit static credentials.
       factoryOpts.accessKeyId = awsAccessKeyId;
       factoryOpts.secretAccessKey = awsSecretAccessKey;
       if (awsSessionToken) factoryOpts.sessionToken = awsSessionToken;
+    } else {
+      // No static creds: resolve via the AWS default credential chain so the
+      // role is assumed automatically — EKS IRSA / Pod Identity, EC2/ECS
+      // instance roles, SSO, shared profile, or AWS_* env vars. The bedrock
+      // provider does not bundle this resolver, so we supply it from the
+      // optional '@aws-sdk/credential-providers' peer dependency.
+      try {
+        const creds: any = await import('@aws-sdk/credential-providers');
+        const fromNodeProviderChain =
+          creds.fromNodeProviderChain ?? creds.default?.fromNodeProviderChain;
+        if (typeof fromNodeProviderChain === 'function') {
+          factoryOpts.credentialProvider = fromNodeProviderChain();
+        }
+      } catch {
+        // Package not installed: fall back to the provider's own env-var
+        // handling (static AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY, or a
+        // Bedrock API key via AWS_BEARER_TOKEN_BEDROCK). IRSA / Pod Identity /
+        // instance roles require '@aws-sdk/credential-providers' to be
+        // installed in the backend.
+      }
     }
   } else {
     if (apiKey) factoryOpts.apiKey = apiKey;
