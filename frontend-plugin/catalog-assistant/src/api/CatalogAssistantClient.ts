@@ -17,6 +17,7 @@
 import { DiscoveryApi, FetchApi } from '@backstage/core-plugin-api';
 import {
   CatalogAssistantApi,
+  ChatMessage,
   ModelsResponse,
   QueryResult,
 } from './types';
@@ -43,11 +44,19 @@ export class CatalogAssistantClient implements CatalogAssistantApi {
     return (await res.json()) as ModelsResponse;
   }
 
-  async query(question: string, model?: string): Promise<QueryResult> {
+  async query(
+    question: string,
+    model?: string,
+    history?: ChatMessage[],
+  ): Promise<QueryResult> {
     const res = await this.fetchApi.fetch(`${await this.baseUrl()}/v1/query`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question, ...(model ? { model } : {}) }),
+      body: JSON.stringify({
+        question,
+        ...(model ? { model } : {}),
+        ...(history && history.length ? { history } : {}),
+      }),
     });
     if (!res.ok) {
       throw await toError(res);

@@ -22,8 +22,9 @@ Two options — pick one (or both):
 - **Standalone page + sidebar item:** a full page reached from a new left-nav
   entry. Use this if you have room in the sidebar.
 
-> The backend is one-shot (no conversation memory yet), so the chat shows a
-> running list of Q&A but answers each question independently.
+> The chat is multi-turn: it keeps the conversation **per browser session**
+> (persisted in `sessionStorage`), sends prior turns to the backend so
+> follow-ups like "who owns it?" work, and a **Clear** button resets it.
 
 ## Install (into your Backstage app)
 

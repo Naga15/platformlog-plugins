@@ -28,6 +28,12 @@ export interface ModelsResponse {
   default?: string;
 }
 
+/** A prior conversation turn sent for multi-turn follow-ups. */
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 /** Response of `POST /v1/query`. */
 export interface QueryResult {
   answer: string;
@@ -37,7 +43,11 @@ export interface QueryResult {
 /** Client for the catalog-assistant backend plugin. */
 export interface CatalogAssistantApi {
   listModels(): Promise<ModelsResponse>;
-  query(question: string, model?: string): Promise<QueryResult>;
+  query(
+    question: string,
+    model?: string,
+    history?: ChatMessage[],
+  ): Promise<QueryResult>;
 }
 
 export const catalogAssistantApiRef = createApiRef<CatalogAssistantApi>({

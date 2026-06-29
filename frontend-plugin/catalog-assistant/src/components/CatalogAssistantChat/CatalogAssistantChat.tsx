@@ -35,13 +35,26 @@ import {
 } from '@material-ui/core';
 import ChatIcon from '@material-ui/icons/QuestionAnswer';
 import CloseIcon from '@material-ui/icons/Close';
+import DeleteOutlineIcon from '@material-ui/icons/DeleteOutline';
 import SendIcon from '@material-ui/icons/Send';
-import { catalogAssistantApiRef } from '../../api/types';
+import { catalogAssistantApiRef, ChatMessage } from '../../api/types';
 
 type Message =
   | { role: 'user'; text: string }
   | { role: 'assistant'; text: string; citations: string[] }
   | { role: 'error'; text: string };
+
+/** Conversation is kept per browser session until the user clears it. */
+const STORAGE_KEY = 'catalog-assistant-chat';
+
+function loadMessages(): Message[] {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as Message[]) : [];
+  } catch {
+    return [];
+  }
+}
 
 const useStyles = makeStyles(theme => ({
   fab: {
@@ -114,8 +127,26 @@ export const CatalogAssistantChat = () => {
   const [model, setModel] = useState('');
   const [input, setInput] = useState('');
   const [asking, setAsking] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(loadMessages);
   const endRef = useRef<HTMLDivElement>(null);
+
+  // Persist the conversation for the browser session.
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch {
+      /* ignore storage quota / disabled storage */
+    }
+  }, [messages]);
+
+  const clearConversation = () => {
+    setMessages([]);
+    try {
+      sessionStorage.removeItem(STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const { value: modelsResp } = useAsync(() => api.listModels(), [api]);
   const models = modelsResp?.models ?? [];
@@ -135,11 +166,19 @@ export const CatalogAssistantChat = () => {
     if (!q || asking) {
       return;
     }
+    // Prior turns (excluding errors), captured before adding the new question.
+    const history: ChatMessage[] = messages
+      .filter(
+        (m): m is Extract<Message, { role: 'user' | 'assistant' }> =>
+          m.role === 'user' || m.role === 'assistant',
+      )
+      .map(m => ({ role: m.role, content: m.text }));
+
     setMessages(prev => [...prev, { role: 'user', text: q }]);
     setInput('');
     setAsking(true);
     try {
-      const res = await api.query(q, model || undefined);
+      const res = await api.query(q, model || undefined, history);
       setMessages(prev => [
         ...prev,
         { role: 'assistant', text: res.answer, citations: res.citations },
@@ -171,14 +210,26 @@ export const CatalogAssistantChat = () => {
     <Paper elevation={8} className={classes.panel}>
       <div className={classes.header}>
         <Typography variant="subtitle1">Catalog Assistant</Typography>
-        <IconButton
-          size="small"
-          onClick={() => setOpen(false)}
-          style={{ color: 'inherit' }}
-          aria-label="Close"
-        >
-          <CloseIcon fontSize="small" />
-        </IconButton>
+        <Box>
+          <IconButton
+            size="small"
+            onClick={clearConversation}
+            disabled={messages.length === 0}
+            style={{ color: 'inherit' }}
+            aria-label="Clear conversation"
+            title="Clear conversation"
+          >
+            <DeleteOutlineIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={() => setOpen(false)}
+            style={{ color: 'inherit' }}
+            aria-label="Close"
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </Box>
       </div>
 
       <div className={classes.messages}>

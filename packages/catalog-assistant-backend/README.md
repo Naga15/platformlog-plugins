@@ -189,10 +189,18 @@ model handles most catalog Q&A well — reserve a frontier model for hard cases.
 
 ### `POST /api/catalog-assistant/v1/query`
 
-Request (`model` is optional; defaults to the configured default model):
+Request (`model` and `history` are optional; `model` defaults to the configured
+default; `history` carries prior turns for multi-turn follow-ups):
 
 ```json
-{ "question": "who owns the payments service?", "model": "us.amazon.nova-lite-v1:0" }
+{
+  "question": "who owns it?",
+  "model": "us.amazon.nova-lite-v1:0",
+  "history": [
+    { "role": "user", "content": "tell me about payments-api" },
+    { "role": "assistant", "content": "payments-api handles payments." }
+  ]
+}
 ```
 
 Response:
@@ -259,7 +267,10 @@ Both feed off the same underlying catalog; the audiences are opposite.
 
 ## Limitations
 
-- **No conversation memory.** Each request is one-shot.
+- **Stateless multi-turn.** The backend keeps no history; the client sends
+  prior turns as `history` on each `POST /v1/query` (capped server-side), and
+  recent user turns are folded into retrieval so follow-ups ("who owns it?")
+  resolve. There is no server-side persistence — clear/scope is the client's job.
 - **Keyword retrieval only.** Compound questions ("services tagged X that
   depend on Y") are answered as well as the LLM can reason over the retrieved
   page; there is no graph traversal at retrieval time.

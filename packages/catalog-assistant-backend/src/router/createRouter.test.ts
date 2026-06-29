@@ -87,6 +87,38 @@ describe('createRouter', () => {
     );
   });
 
+  it('forwards conversation history to the QueryService', async () => {
+    const query = jest.fn().mockResolvedValue({ answer: 'ok', citations: [] });
+    const app = buildApp({ query });
+    const history = [
+      { role: 'user', content: 'about payments-api' },
+      { role: 'assistant', content: 'it handles payments' },
+    ];
+
+    const res = await request(app)
+      .post('/v1/query')
+      .send({ question: 'who owns it?', history });
+
+    expect(res.status).toEqual(200);
+    expect(query).toHaveBeenCalledWith(
+      'who owns it?',
+      expect.objectContaining({ history }),
+    );
+  });
+
+  it('rejects malformed history entries', async () => {
+    const query = jest.fn();
+    const app = buildApp({ query });
+
+    const res = await request(app)
+      .post('/v1/query')
+      .send({ question: 'q', history: [{ role: 'bot', content: 'x' }] });
+
+    expect(res.status).toEqual(400);
+    expect(res.body.error.message).toMatch(/history\[0\]/);
+    expect(query).not.toHaveBeenCalled();
+  });
+
   it('rejects a non-string model', async () => {
     const query = jest.fn();
     const app = buildApp({ query });

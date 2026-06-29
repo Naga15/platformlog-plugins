@@ -33,6 +33,7 @@ export type {
   ScoredEntity,
 } from './services/CatalogContextRetriever';
 export type {
+  ChatMessage,
   GenerateTextFn,
   QueryResult,
   QueryService,

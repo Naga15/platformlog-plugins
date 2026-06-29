@@ -78,10 +78,44 @@ describe('QueryService', () => {
     const call = generateText.mock.calls[0][0];
     expect(call.model).toEqual('mock-model');
     expect(call.system).toMatch(/Backstage software catalog/);
-    expect(call.prompt).toContain('component:default/payments-api');
-    expect(call.prompt).toContain('owner: group:platform');
-    expect(call.prompt).toContain('Question: who owns payments?');
+    // The grounded content is the last (current) user message.
+    const lastTurn = call.messages[call.messages.length - 1];
+    expect(lastTurn.role).toEqual('user');
+    expect(lastTurn.content).toContain('component:default/payments-api');
+    expect(lastTurn.content).toContain('owner: group:platform');
+    expect(lastTurn.content).toContain('Question: who owns payments?');
     expect(call.maxOutputTokens).toEqual(256);
+  });
+
+  it('threads prior conversation turns before the grounded question', async () => {
+    const generateText = jest.fn().mockResolvedValue({ text: 'ok' });
+    const svc = new QueryService(
+      fakeRetriever([entity('payments-api')]),
+      'mock-model',
+      generateText,
+      logger,
+      256,
+    );
+
+    await svc.query('who owns it?', {
+      history: [
+        { role: 'user', content: 'tell me about payments-api' },
+        { role: 'assistant', content: 'payments-api handles payments.' },
+      ],
+    });
+
+    const { messages } = generateText.mock.calls[0][0];
+    expect(messages).toHaveLength(3); // 2 history + 1 grounded current turn
+    expect(messages[0]).toEqual({
+      role: 'user',
+      content: 'tell me about payments-api',
+    });
+    expect(messages[1]).toEqual({
+      role: 'assistant',
+      content: 'payments-api handles payments.',
+    });
+    expect(messages[2].role).toEqual('user');
+    expect(messages[2].content).toContain('Question: who owns it?');
   });
 
   it('throws InputError on an empty question', async () => {
@@ -193,8 +227,9 @@ describe('QueryService', () => {
 
     await svc.query('payments');
 
-    const prompt = generateText.mock.calls[0][0].prompt as string;
-    expect(prompt).toContain('dependsOn: resource:default/payments-db');
-    expect(prompt).toContain('providesApis: api:default/payments');
+    const { messages } = generateText.mock.calls[0][0];
+    const content = messages[messages.length - 1].content as string;
+    expect(content).toContain('dependsOn: resource:default/payments-db');
+    expect(content).toContain('providesApis: api:default/payments');
   });
 });

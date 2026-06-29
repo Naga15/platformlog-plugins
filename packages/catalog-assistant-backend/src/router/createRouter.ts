@@ -17,7 +17,29 @@
 import { HttpAuthService, LoggerService } from '@backstage/backend-plugin-api';
 import { InputError } from '@backstage/errors';
 import express, { NextFunction, Request, Response, Router } from 'express';
-import { QueryService } from '../services/QueryService';
+import { ChatMessage, QueryService } from '../services/QueryService';
+
+/** Validates and normalizes the optional `history` field from a request body. */
+function parseHistory(raw: unknown): ChatMessage[] | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!Array.isArray(raw)) {
+    throw new InputError('`history`, if provided, must be an array');
+  }
+  return raw.map((m, i) => {
+    const turn = m as { role?: unknown; content?: unknown };
+    if (
+      (turn?.role !== 'user' && turn?.role !== 'assistant') ||
+      typeof turn?.content !== 'string'
+    ) {
+      throw new InputError(
+        `history[${i}] must be { role: 'user' | 'assistant', content: string }`,
+      );
+    }
+    return { role: turn.role, content: turn.content };
+  });
+}
 
 /**
  * Builds the express router exposing `POST /v1/query`.
@@ -50,7 +72,7 @@ export function createRouter(options: {
     '/v1/query',
     asyncHandler(async (req, res) => {
       const body = req.body as
-        | { question?: unknown; model?: unknown }
+        | { question?: unknown; model?: unknown; history?: unknown }
         | undefined;
       if (!body || typeof body.question !== 'string') {
         throw new InputError('Request body must include a string `question`');
@@ -58,6 +80,7 @@ export function createRouter(options: {
       if (body.model !== undefined && typeof body.model !== 'string') {
         throw new InputError('`model`, if provided, must be a string');
       }
+      const history = parseHistory(body.history);
 
       // Credential is read so a future retriever can use it to filter entities
       // the caller can actually see. Today's retriever ignores it.
@@ -71,6 +94,7 @@ export function createRouter(options: {
           token: (credentials as { token?: string }).token,
         },
         model: body.model,
+        history,
       });
       logger.info(
         `catalog-assistant: answered question in ${Date.now() - start}ms`,
