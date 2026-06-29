@@ -47,11 +47,24 @@ yarn --cwd packages/app add @theplatformlog/catalog-assistant
 
 ## Wire it up
 
-### Option A — floating chat widget (one edit)
+### Option A — floating chat widget (two edits)
 
-Mount `<CatalogAssistantChat />` once in your app's root so it floats on every
-page. In `packages/app/src/components/Root/Root.tsx`, render it next to
-`{children}` inside the `Root` component:
+**1. Register the plugin** in `packages/app/src/App.tsx`. The chat widget is not
+on a route, so `createApp` won't auto-discover the plugin — without this you get
+`NotImplementedError: No implementation available for apiRef{plugin.catalog-assistant.service}`:
+
+```tsx
+import { catalogAssistantPlugin } from '@theplatformlog/catalog-assistant';
+
+const app = createApp({
+  apis,
+  plugins: [catalogAssistantPlugin], // <-- add this
+  bindRoutes({ bind }) { /* ... */ },
+});
+```
+
+**2. Mount the widget** once in your app's root so it floats on every page. In
+`packages/app/src/components/Root/Root.tsx`, render it next to `{children}`:
 
 ```tsx
 import { CatalogAssistantChat } from '@theplatformlog/catalog-assistant';
@@ -66,7 +79,8 @@ export const Root = ({ children }: PropsWithChildren<{}>) => (
 ```
 
 No route and no sidebar item needed — the bubble appears bottom-right on every
-page. (Mounting it here, rather than inside one page, is what makes it global.)
+page. (Option B's routable page auto-registers the plugin, so it doesn't need
+step 1; the chat widget does because it's mounted outside the routes.)
 
 ### Option B — standalone page + sidebar item (two edits)
 
