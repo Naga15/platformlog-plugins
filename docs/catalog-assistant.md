@@ -13,6 +13,17 @@ model (with Bedrock pricing). For install/config see the package READMEs:
 
 ---
 
+## Screenshots
+
+The floating chat bubble (bottom-right, on every page) and the open chat panel —
+a grounded answer with an entity-ref citation chip and the model dropdown:
+
+| Bubble | Chat panel |
+|---|---|
+| ![Catalog Assistant chat bubble](images/catalog-assistant-bubble.png) | ![Catalog Assistant chat panel](images/catalog-assistant-chat.png) |
+
+---
+
 ## Two packages, one plugin
 
 Backstage requires the browser and Node halves to be separate npm packages; they

@@ -7,6 +7,8 @@ grounded answer with entity-ref **citations**.
 Pairs with [`@theplatformlog/catalog-assistant-backend`](../../packages/catalog-assistant-backend) —
 the frontend just calls that plugin's `GET /v1/models` and `POST /v1/query`.
 
+![Catalog Assistant chat panel](../../docs/images/catalog-assistant-chat.png)
+
 > ⚠️ **This package lives outside the backend monorepo's `packages/*` workspace
 > on purpose** — this repo has no frontend toolchain, so the code here is **not
 > built or type-checked by this repo's CI**. Build and run it inside a Backstage
