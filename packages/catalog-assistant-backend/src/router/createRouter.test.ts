@@ -26,6 +26,7 @@ const buildApp = (svc: Partial<QueryService>) => {
     createRouter({
       queryService: svc as QueryService,
       httpAuth: mockServices.httpAuth(),
+      auth: mockServices.auth(),
       logger: mockServices.logger.mock(),
     }),
   );

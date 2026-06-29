@@ -14,7 +14,11 @@
  * limitations under the License.
  */
 
-import { HttpAuthService, LoggerService } from '@backstage/backend-plugin-api';
+import {
+  AuthService,
+  HttpAuthService,
+  LoggerService,
+} from '@backstage/backend-plugin-api';
 import { InputError } from '@backstage/errors';
 import express, { NextFunction, Request, Response, Router } from 'express';
 import { ChatMessage, QueryService } from '../services/QueryService';
@@ -48,9 +52,10 @@ function parseHistory(raw: unknown): ChatMessage[] | undefined {
 export function createRouter(options: {
   queryService: QueryService;
   httpAuth: HttpAuthService;
+  auth: AuthService;
   logger: LoggerService;
 }): Router {
-  const { queryService, httpAuth, logger } = options;
+  const { queryService, httpAuth, auth, logger } = options;
   const router = Router();
   router.use(express.json({ limit: '256kb' }));
 
@@ -84,15 +89,19 @@ export function createRouter(options: {
 
       // Credential is read so a future retriever can use it to filter entities
       // the caller can actually see. Today's retriever ignores it.
-      const credentials = await httpAuth.credentials(req, {
-        allow: ['user', 'service'],
+      // Authenticate the caller to this endpoint.
+      await httpAuth.credentials(req, { allow: ['user', 'service'] });
+      // Read the catalog as this plugin's own service identity — works for any
+      // caller (user, service, or external token); the retriever does no
+      // per-user filtering today.
+      const { token } = await auth.getPluginRequestToken({
+        onBehalfOf: await auth.getOwnServiceCredentials(),
+        targetPluginId: 'catalog',
       });
 
       const start = Date.now();
       const result = await queryService.query(body.question, {
-        credentials: {
-          token: (credentials as { token?: string }).token,
-        },
+        credentials: { token },
         model: body.model,
         history,
       });

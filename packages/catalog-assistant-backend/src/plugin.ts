@@ -49,9 +49,10 @@ export const catalogAssistantPlugin = createBackendPlugin({
         logger: coreServices.logger,
         httpRouter: coreServices.httpRouter,
         httpAuth: coreServices.httpAuth,
+        auth: coreServices.auth,
         discovery: coreServices.discovery,
       },
-      async init({ config, logger, httpRouter, httpAuth, discovery }) {
+      async init({ config, logger, httpRouter, httpAuth, auth, discovery }) {
         const sub = config.getOptionalConfig('catalogAssistant');
         const provider =
           sub?.getOptionalString('provider') ?? DEFAULT_PROVIDER;
@@ -148,7 +149,7 @@ export const catalogAssistantPlugin = createBackendPlugin({
           modelProvider,
         );
 
-        httpRouter.use(createRouter({ queryService, httpAuth, logger }));
+        httpRouter.use(createRouter({ queryService, httpAuth, auth, logger }));
       },
     });
   },
